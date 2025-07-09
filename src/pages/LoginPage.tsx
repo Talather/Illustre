@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +35,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           description: `Bienvenue ${user.name} !`,
         });
         onLogin(user);
+        navigate('/dashboard');
       }
     } else {
       toast({
@@ -54,6 +56,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
       description: `Connecté en tant que ${user.name}`,
     });
     onLogin(user);
+    navigate('/dashboard');
   };
 
   const getRoleBadgeColor = (role: string) => {
