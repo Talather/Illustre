@@ -15,6 +15,7 @@ interface Product {
   preparationLink: string;
   responsible: string;
   instructions: string;
+  nextActionDate?: string; // Made optional since we removed next action references
   revisions?: Array<{
     id: string;
     requestedAt: string;

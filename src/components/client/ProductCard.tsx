@@ -9,7 +9,6 @@ import {
   Video,
   ExternalLink,
   Folder,
-  Clock,
   ChevronDown,
   MessageSquare,
   Send
@@ -22,7 +21,7 @@ interface Product {
   status: string;
   deliverableLink: string;
   preparationLink: string;
-  nextActionDate: string;
+  nextActionDate?: string; // Made optional
   responsible: string;
   instructions: string;
   revisions?: Array<{
@@ -51,6 +50,7 @@ interface ProductCardProps {
  * - "Preproduction" button (renamed from preparation documents)
  * - Revision request form below deliverables
  * - Collapsible revision history
+ * - Removed next action date display as requested
  */
 export const ProductCard = ({
   product,
@@ -220,12 +220,6 @@ export const ProductCard = ({
               </CollapsibleContent>
             </Collapsible>
           )}
-
-          {/* Next Action */}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Clock className="w-4 h-4" />
-            Prochaine action prévue: {new Date(product.nextActionDate).toLocaleDateString('fr-FR')}
-          </div>
         </div>
       </CardContent>
     </Card>
