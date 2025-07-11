@@ -1,42 +1,43 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Profile, mockProfiles, mockOrders, productTemplates, ProductTemplate } from "@/lib/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { 
   LogOut, 
-  ArrowLeft, 
   Plus,
   ShoppingCart,
   Send,
   UserPlus,
-  DollarSign,
-  Settings,
   Edit,
-  Package,
-  ExternalLink
+  Loader2
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
-interface CloserInterfaceProps {
-  user: Profile;
-  onLogout: () => void;
+interface ProductTemplate {
+  id: string;
+  name: string;
+  description: string;
+  video_count: number;
+  price_cents: number;
+  format: string;
+  features: string[];
 }
 
 interface CustomOption {
   name: string;
   description: string;
-  stripeUrl: string;
+  price_adjustment_cents: number;
 }
 
-const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
-  const navigate = useNavigate();
+const CloserInterface = () => {
+  const { signOut, user, userRoles } = useAuth();
   const [newClientData, setNewClientData] = useState({
     name: "",
     email: "",
@@ -50,36 +51,175 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
   });
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [isLaunchingOnboarding, setIsLaunchingOnboarding] = useState<string | null>(null);
+  
+  const [existingClients, setExistingClients] = useState([]);
+  const [existingOrders, setExistingOrders] = useState([]);
+  const [productTemplates, setProductTemplates] = useState<ProductTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Get existing clients
-  const existingClients = mockProfiles.filter(p => 
-    p.roles.includes('client')
-  );
+  // Verify user is a closer
+  useEffect(() => {
+    if (!userRoles.includes('closer')) {
+      toast({
+        title: "Accès refusé",
+        description: "Vous n'avez pas les permissions pour accéder à cette interface.",
+        variant: "destructive"
+      });
+    }
+  }, [userRoles]);
 
-  // Get existing orders
-  const existingOrders = mockOrders;
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const handleCreateClient = async () => {
-    if (!newClientData.name || !newClientData.email) {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch existing clients
+      const { data: clients, error: clientsError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          name,
+          email,
+          company,
+          user_roles!inner(role)
+        `)
+        .eq('user_roles.role', 'client');
+
+      if (clientsError) throw clientsError;
+      setExistingClients(clients || []);
+
+      // Fetch orders created by this closer
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          profiles!orders_client_id_fkey(name, email)
+        `)
+        .eq('closer_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (ordersError) throw ordersError;
+      setExistingOrders(orders || []);
+
+      // Fetch product templates
+      const { data: templates, error: templatesError } = await supabase
+        .from('product_templates')
+        .select('*')
+        .eq('is_active', true)
+        .order('price_cents', { ascending: true });
+
+      if (templatesError) throw templatesError;
+      setProductTemplates(templates || []);
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
       toast({
         title: "Erreur",
-        description: "Nom et email sont requis",
+        description: "Impossible de récupérer les données",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateOrder = async () => {
+    if (!newOrderData.clientId || !newOrderData.name || !newOrderData.selectedTemplate) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs requis",
         variant: "destructive"
       });
       return;
     }
 
-    setIsCreatingClient(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsCreatingOrder(true);
     
-    toast({
-      title: "Client créé",
-      description: `${newClientData.name} a été ajouté avec succès`,
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('create-client-and-order', {
+        body: {
+          clientName: existingClients.find(c => c.id === newOrderData.clientId)?.name,
+          clientEmail: existingClients.find(c => c.id === newOrderData.clientId)?.email,
+          orderName: newOrderData.name,
+          templateId: newOrderData.selectedTemplate.id,
+          customOptions: newOrderData.customOptions
+        }
+      });
 
-    setNewClientData({ name: "", email: "", company: "" });
-    setIsCreatingClient(false);
+      if (error) throw error;
+
+      toast({
+        title: "Commande créée",
+        description: `La commande "${newOrderData.name}" a été créée avec succès`,
+      });
+
+      // Reset form and refresh data
+      setNewOrderData({ 
+        clientId: "", 
+        name: "",
+        selectedTemplate: null, 
+        customOptions: [] 
+      });
+      
+      await fetchData();
+
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la commande",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
+
+  const handleLaunchOnboarding = async (orderId: string) => {
+    const order = existingOrders.find(o => o.id === orderId);
+    if (!order) return;
+
+    setIsLaunchingOnboarding(orderId);
+    
+    try {
+      const { error } = await supabase.functions.invoke('send-onboarding-email', {
+        body: {
+          orderId: order.id,
+          clientEmail: order.profiles.email,
+          clientName: order.profiles.name
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Onboarding lancé",
+        description: "L'email d'onboarding a été envoyé au client",
+      });
+
+      // Update order status to in_progress
+      await supabase
+        .from('orders')
+        .update({ status: 'in_progress' })
+        .eq('id', orderId);
+
+      await fetchData();
+
+    } catch (error) {
+      console.error('Error launching onboarding:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de lancer l'onboarding",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLaunchingOnboarding(null);
+    }
   };
 
   const handleSelectTemplate = (template: ProductTemplate) => {
@@ -87,10 +227,6 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       ...prev,
       selectedTemplate: template
     }));
-    toast({
-      title: "Template sélectionné",
-      description: `${template.name} - ${template.basePrice}€`,
-    });
   };
 
   const handleAddCustomOption = () => {
@@ -99,12 +235,12 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       customOptions: [...prev.customOptions, {
         name: "",
         description: "",
-        stripeUrl: ""
+        price_adjustment_cents: 0
       }]
     }));
   };
 
-  const handleUpdateCustomOption = (index: number, field: string, value: string) => {
+  const handleUpdateCustomOption = (index: number, field: string, value: string | number) => {
     setNewOrderData(prev => ({
       ...prev,
       customOptions: prev.customOptions.map((option, i) => 
@@ -120,56 +256,22 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
     }));
   };
 
-  const handleCreateOrder = async () => {
-    if (!newOrderData.clientId || !newOrderData.name || !newOrderData.selectedTemplate) {
-      toast({
-        title: "Erreur",
-        description: "Sélectionnez un client, nom de commande et un template",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsCreatingOrder(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "Commande créée",
-      description: "La commande a été créée avec succès",
-    });
-
-    setNewOrderData({ 
-      clientId: "", 
-      name: "",
-      selectedTemplate: null, 
-      customOptions: [] 
-    });
-    setIsCreatingOrder(false);
-  };
-
-  const handleLaunchOnboarding = async (orderId: string) => {
-    toast({
-      title: "Lancement de l'onboarding",
-      description: "Génération des liens et envoi des emails...",
-    });
-
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    toast({
-      title: "Onboarding lancé",
-      description: "Tous les liens ont été générés et les emails envoyés au client",
-    });
-  };
-
   const getTotalPrice = () => {
-    return (newOrderData.selectedTemplate?.basePrice || 0);
+    const basePrice = newOrderData.selectedTemplate?.price_cents || 0;
+    const customOptionsPrice = newOrderData.customOptions.reduce((sum, option) => sum + (option.price_adjustment_cents || 0), 0);
+    return basePrice + customOptionsPrice;
   };
 
-  const groupedTemplates = {
-    podcast: productTemplates.filter(t => t.format === 'podcast'),
-    scripted: productTemplates.filter(t => t.format === 'scripted'),
-    'micro-interview': productTemplates.filter(t => t.format === 'micro-interview')
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="flex items-center gap-2 text-gray-600">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Chargement des données...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -191,7 +293,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
               <Badge variant="outline" className="bg-green-100 text-green-800">
                 Closer
               </Badge>
-              <Button variant="outline" onClick={onLogout}>
+              <Button variant="outline" onClick={signOut}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Déconnexion
               </Button>
@@ -211,62 +313,77 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
           </p>
         </div>
 
-        <Tabs defaultValue="create" className="space-y-6">
+        <Tabs defaultValue="orders" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="create">Créer</TabsTrigger>
             <TabsTrigger value="orders">Commandes</TabsTrigger>
+            <TabsTrigger value="create">Créer</TabsTrigger>
           </TabsList>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="space-y-6">
+            <div className="grid gap-4">
+              {existingOrders.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-gray-500">Aucune commande trouvée</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                existingOrders.map((order) => (
+                  <Card key={order.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg">{order.order_number}</h3>
+                          <p className="text-gray-600">{order.profiles.name} ({order.profiles.email})</p>
+                          <p className="text-sm text-gray-500">
+                            Créé le {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                          </p>
+                          <p className="text-sm font-medium">
+                            Total: {(order.total_amount_cents / 100).toFixed(2)}€
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className={
+                            order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-orange-100 text-orange-800'
+                          }>
+                            {order.status === 'completed' ? 'Terminé' :
+                             order.status === 'in_progress' ? 'En cours' : 'Onboarding'}
+                          </Badge>
+                          
+                          {order.status === 'onboarding' && (
+                            <Button
+                              onClick={() => handleLaunchOnboarding(order.id)}
+                              disabled={isLaunchingOnboarding === order.id}
+                              className="bg-gradient-turquoise hover:opacity-90"
+                            >
+                              {isLaunchingOnboarding === order.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Envoi...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4 mr-2" />
+                                  Lancer l'onboarding
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
 
           {/* Create Tab */}
           <TabsContent value="create" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Create Client */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserPlus className="w-5 h-5" />
-                    Créer un nouveau client
-                  </CardTitle>
-                  <CardDescription>
-                    Ajoutez un nouveau client à la base de données
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Nom complet *</label>
-                    <Input
-                      placeholder="Jean Dupont"
-                      value={newClientData.name}
-                      onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Email *</label>
-                    <Input
-                      type="email"
-                      placeholder="jean@exemple.com"
-                      value={newClientData.email}
-                      onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Entreprise</label>
-                    <Input
-                      placeholder="Nom de l'entreprise"
-                      value={newClientData.company}
-                      onChange={(e) => setNewClientData(prev => ({ ...prev, company: e.target.value }))}
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleCreateClient}
-                    disabled={isCreatingClient}
-                    className="w-full bg-gradient-turquoise hover:opacity-90"
-                  >
-                    {isCreatingClient ? "Création..." : "Créer le client"}
-                  </Button>
-                </CardContent>
-              </Card>
-
+            <div className="grid grid-cols-1 gap-6">
               {/* Create Order */}
               <Card>
                 <CardHeader>
@@ -309,37 +426,29 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                   {/* Template Selection */}
                   <div>
                     <label className="text-sm font-medium">Template produit *</label>
-                    <div className="space-y-4 mt-2">
-                      {Object.entries(groupedTemplates).map(([format, templates]) => (
-                        <div key={format} className="space-y-2">
-                          <h4 className="font-medium text-sm capitalize">
-                            {format === 'podcast' ? 'Podcast' :
-                             format === 'scripted' ? 'Scripté' :
-                             'Micro-trottoir'}
-                          </h4>
-                          <div className="grid grid-cols-1 gap-2">
-                            {templates.map((template) => (
-                              <div
-                                key={template.id}
-                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                                  newOrderData.selectedTemplate?.id === template.id
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                                onClick={() => handleSelectTemplate(template)}
-                              >
-                                <div className="flex justify-between items-center">
-                                  <div>
-                                    <div className="font-medium text-sm">{template.name}</div>
-                                    <div className="text-xs text-gray-600">{template.description}</div>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-bold text-sm">{template.basePrice}€</div>
-                                    <div className="text-xs text-gray-500">{template.quantity} vidéos</div>
-                                  </div>
-                                </div>
+                    <div className="grid grid-cols-1 gap-3 mt-2">
+                      {productTemplates.map((template) => (
+                        <div
+                          key={template.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                            newOrderData.selectedTemplate?.id === template.id
+                              ? 'border-primary bg-primary/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => handleSelectTemplate(template)}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="font-medium">{template.name}</div>
+                              <div className="text-sm text-gray-600">{template.description}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Format: {template.format}
                               </div>
-                            ))}
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold">{(template.price_cents / 100).toFixed(0)}€</div>
+                              <div className="text-sm text-gray-500">{template.video_count} vidéos</div>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -382,9 +491,10 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                             rows={2}
                           />
                           <Input
-                            placeholder="Lien Stripe checkout"
-                            value={option.stripeUrl}
-                            onChange={(e) => handleUpdateCustomOption(index, 'stripeUrl', e.target.value)}
+                            type="number"
+                            placeholder="Ajustement prix (centimes)"
+                            value={option.price_adjustment_cents}
+                            onChange={(e) => handleUpdateCustomOption(index, 'price_adjustment_cents', parseInt(e.target.value) || 0)}
                           />
                         </div>
                       ))}
@@ -394,11 +504,8 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                   {newOrderData.selectedTemplate && (
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between font-medium">
-                        <span>Prix du template:</span>
-                        <span className="text-lg">{getTotalPrice()}€</span>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        Options personnalisées facturées séparément
+                        <span>Prix total:</span>
+                        <span className="text-lg">{(getTotalPrice() / 100).toFixed(2)}€</span>
                       </div>
                     </div>
                   )}
@@ -408,60 +515,17 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                     disabled={isCreatingOrder || !newOrderData.clientId || !newOrderData.selectedTemplate}
                     className="w-full bg-gradient-turquoise hover:opacity-90"
                   >
-                    {isCreatingOrder ? "Création..." : "Créer la commande"}
+                    {isCreatingOrder ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Création...
+                      </>
+                    ) : (
+                      "Créer la commande"
+                    )}
                   </Button>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
-
-          {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6">
-            <div className="grid gap-4">
-              {existingOrders.map((order) => (
-                <Card key={order.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg">Commande #{order.id}</h3>
-                        <p className="text-gray-600">{order.clientName}</p>
-                        <p className="text-sm text-gray-500">
-                          Créé le {new Date(order.createdAt).toLocaleDateString('fr-FR')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge className={
-                          order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                          'bg-orange-100 text-orange-800'
-                        }>
-                          {order.status === 'completed' ? 'Terminé' :
-                           order.status === 'in_progress' ? 'En cours' : 'Onboarding'}
-                        </Badge>
-                        
-                        {order.status === 'onboarding' && (
-                          <>
-                            <Button
-                              variant="outline"
-                              onClick={() => setEditingOrderId(order.id)}
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Modifier
-                            </Button>
-                            <Button
-                              onClick={() => handleLaunchOnboarding(order.id)}
-                              className="bg-gradient-turquoise hover:opacity-90"
-                            >
-                              <Send className="w-4 h-4 mr-2" />
-                              Lancer l'onboarding
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
             </div>
           </TabsContent>
         </Tabs>

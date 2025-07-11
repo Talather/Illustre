@@ -1,219 +1,216 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { mockAuth, mockProfiles, Profile } from "@/lib/mockData";
-import { toast } from "@/hooks/use-toast";
-import { Eye, EyeOff, LogIn, Users } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
-interface LoginPageProps {
-  onLogin: (user: Profile) => void;
-}
-
-const LoginPage = ({ onLogin }: LoginPageProps) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+const LoginPage = () => {
+  const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [loginData, setLoginData] = useState({
+    email: "",
+    password: "",
+  });
+  
+  const [signupData, setSignupData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      navigate("/");
+    }
+  }, [user, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const { error } = await signIn(loginData.email, loginData.password);
     
-    const success = mockAuth.login(email);
-    if (success) {
-      const user = mockAuth.getCurrentUser();
-      if (user) {
-        toast({
-          title: "Connexion réussie",
-          description: `Bienvenue ${user.name} !`,
-        });
-        onLogin(user);
-        // Auto-redirect based on user roles
-        const defaultRoute = user.roles.includes('admin') ? '/admin' :
-                            user.roles.includes('closer') ? '/closer' :
-                            user.roles.includes('collaborator') ? '/collaborator' :
-                            '/client';
-        navigate(defaultRoute);
-      }
-    } else {
-      toast({
-        title: "Erreur de connexion",
-        description: "Email non reconnu. Utilisez un des comptes de test ci-dessous.",
-        variant: "destructive",
+    if (!error) {
+      navigate("/");
+    }
+    
+    setIsLoading(false);
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (signupData.password !== signupData.confirmPassword) {
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    const { error } = await signUp(signupData.email, signupData.password, signupData.name);
+    
+    if (!error) {
+      // Reset form on successful signup
+      setSignupData({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
       });
     }
     
-    setLoading(false);
+    setIsLoading(false);
   };
 
-  const handleQuickLogin = (user: Profile) => {
-    mockAuth.currentUser = user;
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    toast({
-      title: "Connexion rapide",
-      description: `Connecté en tant que ${user.name}`,
-    });
-    onLogin(user);
-    // Auto-redirect based on user roles
-    const defaultRoute = user.roles.includes('admin') ? '/admin' :
-                        user.roles.includes('closer') ? '/closer' :
-                        user.roles.includes('collaborator') ? '/collaborator' :
-                        '/client';
-    navigate(defaultRoute);
-  };
-
-  const getRoleBadgeColor = (role: string) => {
-    const colors: Record<string, string> = {
-      client: "bg-blue-100 text-blue-800",
-      closer: "bg-green-100 text-green-800",
-      collaborator: "bg-purple-100 text-purple-800",
-      admin: "bg-red-100 text-red-800"
-    };
-    return colors[role] || "bg-gray-100 text-gray-800";
-  };
-
-  const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = {
-      lead: "Lead",
-      client: "Client",
-      closer: "Closer",
-      collaborator: "Collaborateur",
-      admin: "Admin"
-    };
-    return labels[role] || role;
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="flex items-center gap-2 text-gray-600">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Chargement...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-turquoise flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8">
-        {/* Login Form */}
-        <Card className="w-full max-w-md mx-auto shadow-2xl">
-          <CardHeader className="text-center">
-            <div className="text-4xl font-avigea text-gradient-turquoise mb-4">
-              illustre!
-            </div>
-            <CardTitle className="text-2xl font-poppins">Connexion</CardTitle>
-            <CardDescription>
-              Accédez à votre espace de production audiovisuelle
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="votre.email@exemple.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">
-                  Mot de passe
-                </label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-avigea text-gradient-turquoise mb-2">
+            illustre!
+          </h1>
+          <p className="text-gray-600">
+            Plateforme de production vidéo
+          </p>
+        </div>
 
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-turquoise hover:opacity-90 transition-opacity"
-                disabled={loading}
-              >
-                {loading ? (
-                  "Connexion..."
-                ) : (
-                  <>
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Se connecter
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Mock Accounts */}
-        <Card className="shadow-2xl">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Comptes de test
-            </CardTitle>
+            <CardTitle>Connexion</CardTitle>
             <CardDescription>
-              Cliquez sur un profil pour vous connecter rapidement et tester l'interface correspondante
+              Connectez-vous à votre compte illustre!
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockProfiles.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleQuickLogin(user)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl">{user.avatar}</div>
-                    <div>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
+            <Tabs defaultValue="login" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Connexion</TabsTrigger>
+                <TabsTrigger value="signup">Inscription</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="login">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="votre@email.com"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                      required
+                    />
                   </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {user.roles.map((role) => (
-                      <Badge 
-                        key={role}
-                        variant="outline"
-                        className={getRoleBadgeColor(role)}
-                      >
-                        {getRoleLabel(role)}
-                      </Badge>
-                    ))}
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Mot de passe</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                      required
+                    />
                   </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">💡 Guide des rôles</h4>
-              <div className="space-y-1 text-sm text-blue-800">
-                <div><strong>Lead :</strong> Processus d'onboarding uniquement</div>
-                <div><strong>Client :</strong> Dashboard projet + fichiers + livrables</div>
-                <div><strong>Closer :</strong> Création comptes, commandes, produits</div>
-                <div><strong>Collaborateur :</strong> Production et suivi projets</div>
-                <div><strong>Admin :</strong> Accès complet à toutes les interfaces</div>
-              </div>
-            </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-turquoise hover:opacity-90"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connexion...
+                      </>
+                    ) : (
+                      "Se connecter"
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="signup">
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Nom complet</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="Votre nom"
+                      value={signupData.name}
+                      onChange={(e) => setSignupData(prev => ({ ...prev, name: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="votre@email.com"
+                      value={signupData.email}
+                      onChange={(e) => setSignupData(prev => ({ ...prev, email: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Mot de passe</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      value={signupData.password}
+                      onChange={(e) => setSignupData(prev => ({ ...prev, password: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirmer le mot de passe</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={signupData.confirmPassword}
+                      onChange={(e) => setSignupData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-turquoise hover:opacity-90"
+                    disabled={isLoading || signupData.password !== signupData.confirmPassword}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Inscription...
+                      </>
+                    ) : (
+                      "S'inscrire"
+                    )}
+                  </Button>
+                  {signupData.password !== signupData.confirmPassword && signupData.confirmPassword && (
+                    <p className="text-sm text-red-500">Les mots de passe ne correspondent pas</p>
+                  )}
+                </form>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
