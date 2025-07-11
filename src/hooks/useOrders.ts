@@ -5,9 +5,8 @@ import { Database } from '@/integrations/supabase/types';
 import { useAuth } from './useAuth';
 
 type Order = Database['public']['Tables']['orders']['Row'];
-type Product = Database['public']['Tables']['products']['Row'];
-type OnboardingStep = Database['public']['Tables']['onboarding_steps']['Row'];
-type Revision = Database['public']['Tables']['revisions']['Row'];
+type OrderInsert = Database['public']['Tables']['orders']['Insert'];
+type OrderUpdate = Database['public']['Tables']['orders']['Update'];
 
 export const useOrders = () => {
   const { user } = useAuth();
@@ -56,7 +55,7 @@ export const useCreateOrder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (orderData: Partial<Order>) => {
+    mutationFn: async (orderData: OrderInsert) => {
       const { data, error } = await supabase
         .from('orders')
         .insert(orderData)
@@ -76,7 +75,7 @@ export const useUpdateOrder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Order> & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: OrderUpdate & { id: string }) => {
       const { data, error } = await supabase
         .from('orders')
         .update(updates)

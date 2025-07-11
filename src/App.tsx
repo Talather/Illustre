@@ -44,13 +44,20 @@ const ProtectedRoutes = () => {
     // This will be handled by the auth context
   };
 
+  // Create user object for components
+  const userProfile = {
+    id: user.id,
+    name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
+    email: profile.email,
+  };
+
   return (
     <Routes>
-      <Route path="/client" element={<ClientInterface user={{ id: user.id, name: `${profile.first_name} ${profile.last_name}` }} onLogout={handleLogout} />} />
-      <Route path="/closer" element={<CloserInterface user={{ id: user.id, name: `${profile.first_name} ${profile.last_name}` }} onLogout={handleLogout} />} />
-      <Route path="/collaborator" element={<CollaboratorInterface user={{ id: user.id, name: `${profile.first_name} ${profile.last_name}` }} onLogout={handleLogout} />} />
-      <Route path="/admin" element={<AdminInterface user={{ id: user.id, name: `${profile.first_name} ${profile.last_name}` }} onLogout={handleLogout} />} />
-      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/client" element={<ClientInterface user={userProfile} onLogout={handleLogout} />} />
+      <Route path="/closer" element={<CloserInterface user={userProfile} onLogout={handleLogout} />} />
+      <Route path="/collaborator" element={<CollaboratorInterface user={userProfile} onLogout={handleLogout} />} />
+      <Route path="/admin" element={<AdminInterface user={userProfile} onLogout={handleLogout} />} />
+      <Route path="/dashboard" element={<Dashboard user={userProfile} onLogout={handleLogout} />} />
       <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
