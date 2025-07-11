@@ -34,10 +34,17 @@ export interface OrderProduct {
   deliverableLink: string;
   fileDepositLink: string;
   preparationLink: string;
+  onboardingFormLink: string;
   nextActionDate: string;
   responsible: string;
   instructions: string;
   price: number;
+  revisions?: {
+    id: string;
+    requestedAt: string;
+    description: string;
+    status: 'pending' | 'in_progress' | 'completed';
+  }[];
 }
 
 export interface OnboardingStep {
@@ -288,10 +295,19 @@ export const mockOrderProducts: OrderProduct[] = [
     deliverableLink: 'https://frame.io/project/podcast-innovation-tech',
     fileDepositLink: 'https://dropbox.com/deposit/podcast-files',
     preparationLink: 'https://notion.so/podcast-preparation',
+    onboardingFormLink: 'https://fillout.com/t/podcast-innovation-form',
     nextActionDate: '2024-02-01',
     responsible: 'Laura Petit',
     instructions: 'Interview de 30min sur les innovations technologiques. Ton décontracté, musique moderne.',
-    price: 800
+    price: 800,
+    revisions: [
+      {
+        id: 'rev-001',
+        requestedAt: '2024-01-25',
+        description: 'Ajuster le volume de la musique de fond',
+        status: 'completed'
+      }
+    ]
   },
   {
     id: 'prod-002',
@@ -302,10 +318,12 @@ export const mockOrderProducts: OrderProduct[] = [
     deliverableLink: 'https://frame.io/project/scripted-presentation',
     fileDepositLink: 'https://dropbox.com/deposit/scripted-files',
     preparationLink: 'https://notion.so/scripted-preparation',
+    onboardingFormLink: 'https://fillout.com/t/scripted-presentation-form',
     nextActionDate: '2024-01-28',
     responsible: 'Laura Petit',
     instructions: 'Vidéo corporate de 2-3min. Style professionnel, sous-titres FR et EN.',
-    price: 1200
+    price: 1200,
+    revisions: []
   },
   {
     id: 'prod-003',
@@ -316,10 +334,19 @@ export const mockOrderProducts: OrderProduct[] = [
     deliverableLink: 'https://frame.io/project/micro-trottoir',
     fileDepositLink: 'https://dropbox.com/deposit/micro-files',
     preparationLink: 'https://notion.so/micro-preparation',
+    onboardingFormLink: 'https://fillout.com/t/micro-trottoir-form',
     nextActionDate: '2024-02-05',
     responsible: 'Emma Multi-Role',
     instructions: 'Interviews courtes (1-2min) avec 5-6 clients. Montage dynamique avec transitions.',
-    price: 600
+    price: 600,
+    revisions: [
+      {
+        id: 'rev-002',
+        requestedAt: '2024-02-03',
+        description: 'Revoir le montage pour accélérer les transitions',
+        status: 'pending'
+      }
+    ]
   }
 ];
 

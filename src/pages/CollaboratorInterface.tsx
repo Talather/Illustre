@@ -14,14 +14,15 @@ import {
   Filter,
   Upload,
   Send,
-  Eye,
   FileText,
   Clock,
   Video,
   ExternalLink,
   CheckCircle,
   AlertCircle,
-  Edit
+  Edit,
+  MessageSquare,
+  History
 } from "lucide-react";
 
 interface CollaboratorInterfaceProps {
@@ -148,14 +149,12 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
     }
   };
 
-  const handleViewInstructions = (productId: string) => {
-    const product = mockOrderProducts.find(p => p.id === productId);
-    if (product) {
-      toast({
-        title: "Instructions du projet",
-        description: product.instructions,
-      });
-    }
+  const handleViewOnboardingForm = (formLink: string) => {
+    toast({
+      title: "Ouverture du formulaire d'onboarding",
+      description: "Redirection vers Fillout...",
+    });
+    window.open(formLink, '_blank');
   };
 
   const handleViewPreparation = (link: string) => {
@@ -359,9 +358,17 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
                                     </div>
                                   </div>
 
-                                  <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                                    <h5 className="font-medium mb-2">Instructions</h5>
-                                    <p className="text-sm text-gray-700">{product.instructions}</p>
+                                  <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <h5 className="font-medium mb-2 text-blue-900">Formulaire d'onboarding</h5>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewOnboardingForm(product.onboardingFormLink)}
+                                      className="text-blue-700 hover:text-blue-900"
+                                    >
+                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                      Voir le formulaire Fillout
+                                    </Button>
                                   </div>
 
                                   <div className="flex items-center gap-4 text-sm mb-4">
@@ -401,6 +408,39 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
                                       Actuel: {product.deliverableLink}
                                     </p>
                                   </div>
+
+                                  {/* Revision Requests Section */}
+                                  {product.revisions && product.revisions.length > 0 && (
+                                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                      <h5 className="font-medium mb-2 text-yellow-900 flex items-center gap-2">
+                                        <MessageSquare className="w-4 h-4" />
+                                        Demandes de révision
+                                      </h5>
+                                      <div className="space-y-2">
+                                        {product.revisions.map((revision) => (
+                                          <div key={revision.id} className="bg-white p-2 rounded border">
+                                            <div className="flex items-center justify-between mb-1">
+                                              <span className="text-xs text-gray-500">
+                                                {new Date(revision.requestedAt).toLocaleDateString('fr-FR')}
+                                              </span>
+                                              <Badge 
+                                                variant="outline" 
+                                                className={
+                                                  revision.status === 'completed' ? 'text-green-700 border-green-300' :
+                                                  revision.status === 'in_progress' ? 'text-blue-700 border-blue-300' :
+                                                  'text-orange-700 border-orange-300'
+                                                }
+                                              >
+                                                {revision.status === 'completed' ? 'Terminé' :
+                                                 revision.status === 'in_progress' ? 'En cours' : 'En attente'}
+                                              </Badge>
+                                            </div>
+                                            <p className="text-sm text-gray-700">{revision.description}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="flex flex-col items-end gap-3">
@@ -408,21 +448,23 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
                                     {getStatusLabel(product.status)}
                                   </Badge>
 
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleViewInstructions(product.id)}
-                                    >
-                                      <FileText className="w-4 h-4" />
-                                    </Button>
-                                    
+                                   <div className="flex gap-2">
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleViewPreparation(product.preparationLink)}
                                     >
-                                      <Eye className="w-4 h-4" />
+                                      <FileText className="w-4 h-4 mr-1" />
+                                      Préproduction
+                                    </Button>
+                                    
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => handleDepositDeliverable(product.id)}
+                                    >
+                                      <Upload className="w-4 h-4 mr-1" />
+                                      Déposer livrable
                                     </Button>
                                   </div>
                                 </div>
