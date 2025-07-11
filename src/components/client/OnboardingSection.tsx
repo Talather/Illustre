@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +15,6 @@ import {
   Plus,
   Phone
 } from "lucide-react";
-import { useOrders, useCreateOrder } from "@/hooks/useOrders";
-import { useOnboardingSteps } from "@/hooks/useOnboarding";
-import { useAuth } from "@/hooks/useAuth";
 
 interface OnboardingStep {
   id: string;
@@ -42,58 +40,30 @@ interface OnboardingSectionProps {
   onStartOnboarding: (orderTitle?: string) => void;
 }
 
-export const OnboardingSection = () => {
-  const { user } = useAuth();
-  const { data: orders, isLoading } = useOrders();
-  const createOrderMutation = useCreateOrder();
+/**
+ * OnboardingSection - Manages onboarding progress for all client orders
+ * 
+ * Key Features:
+ * - Shows individual onboarding blocks for each order in onboarding status
+ * - Orders are displayed from newest to oldest
+ * - Correct onboarding step order: Call → Contract → Payment → Form
+ * - Big "Start Onboarding" button if no orders exist
+ * - "New Order" button to create additional orders
+ * - Progress tracking with visual step completion indicators
+ * 
+ * Order Processing Logic:
+ * 1. New orders appear at the top with their own onboarding block
+ * 2. Only orders with 'onboarding' status show onboarding progress
+ * 3. Completed/in-progress orders don't show onboarding blocks
+ */
+export const OnboardingSection = ({
+  allOrders,
+  onboardingStepsByOrder,
+  hasOrders,
+  onStartOnboarding
+}: OnboardingSectionProps) => {
   const [newOrderTitle, setNewOrderTitle] = useState("");
   const [showNewOrderForm, setShowNewOrderForm] = useState(false);
-
-  // Filter orders that belong to the current user
-  const userOrders = orders?.filter(order => order.client_id === user?.id) || [];
-  const hasOrders = userOrders.length > 0;
-
-  const onboardingStepsByOrder = userOrders.reduce((acc, order) => {
-    // This would need to be fetched per order - for now using empty array
-    acc[order.id] = [];
-    return acc;
-  }, {} as Record<string, any[]>);
-
-  const handleStartOnboarding = async (orderTitle?: string) => {
-    if (!user) return;
-
-    try {
-      // Get the default organization (illustre!)
-      const defaultOrgId = ""; // This should be fetched from organizations table
-      
-      await createOrderMutation.mutateAsync({
-        client_id: user.id,
-        client_name: `${user.email}`, // Use profile name when available
-        title: orderTitle || "Nouvelle commande",
-        organization_id: defaultOrgId, // This needs to be set properly
-        status: 'onboarding',
-      });
-
-      toast({
-        title: "Commande créée",
-        description: "Votre nouvelle commande a été créée avec succès.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de créer la commande.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCreateNewOrder = () => {
-    if (newOrderTitle.trim()) {
-      handleStartOnboarding(newOrderTitle.trim());
-      setNewOrderTitle("");
-      setShowNewOrderForm(false);
-    }
-  };
 
   /**
    * Define the correct onboarding step order and configuration
@@ -140,6 +110,32 @@ export const OnboardingSection = () => {
   };
 
   /**
+   * Handle starting onboarding for first-time users
+   */
+  const handleStartOnboarding = () => {
+    onStartOnboarding();
+    toast({
+      title: "Onboarding commencé",
+      description: "Votre processus d'onboarding a été lancé avec succès.",
+    });
+  };
+
+  /**
+   * Handle creating a new order
+   */
+  const handleCreateNewOrder = () => {
+    if (newOrderTitle.trim()) {
+      onStartOnboarding(newOrderTitle.trim());
+      setNewOrderTitle("");
+      setShowNewOrderForm(false);
+      toast({
+        title: "Nouvelle commande créée",
+        description: `La commande "${newOrderTitle}" a été créée avec succès.`,
+      });
+    }
+  };
+
+  /**
    * Get status styling for order badges
    */
   const getOrderStatusColor = (status: string) => {
@@ -160,17 +156,6 @@ export const OnboardingSection = () => {
     return labels[status] || status;
   };
 
-  if (isLoading) {
-    return (
-      <div className="mb-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-64"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
-
   // Show welcome screen for users with no orders
   if (!hasOrders) {
     return (
@@ -189,7 +174,7 @@ export const OnboardingSection = () => {
             </p>
           </div>
           <Button 
-            onClick={() => handleStartOnboarding()}
+            onClick={handleStartOnboarding}
             size="lg"
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg"
           >
@@ -201,7 +186,7 @@ export const OnboardingSection = () => {
   }
 
   // Filter orders that need onboarding display (only 'onboarding' status)
-  const onboardingOrders = userOrders.filter(order => order.status === 'onboarding');
+  const onboardingOrders = allOrders.filter(order => order.status === 'onboarding');
   
   return (
     <div className="mb-8 space-y-6">
@@ -216,10 +201,10 @@ export const OnboardingSection = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl">
-                  Onboarding - {order.client_name}
+                  Onboarding - {order.clientName}
                 </CardTitle>
-                <Badge className={getOrderStatusColor(order.status || 'onboarding')}>
-                  {getOrderStatusLabel(order.status || 'onboarding')}
+                <Badge className={getOrderStatusColor(order.status)}>
+                  {getOrderStatusLabel(order.status)}
                 </Badge>
               </div>
             </CardHeader>
@@ -314,14 +299,14 @@ export const OnboardingSection = () => {
       </div>
 
       {/* List of other orders (non-onboarding) */}
-      {userOrders.filter(order => order.status !== 'onboarding').length > 0 && (
+      {allOrders.filter(order => order.status !== 'onboarding').length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Autres commandes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {userOrders
+              {allOrders
                 .filter(order => order.status !== 'onboarding')
                 .map((order) => (
                   <div 
@@ -329,11 +314,11 @@ export const OnboardingSection = () => {
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
                     <div>
-                      <span className="font-medium">{order.client_name}</span>
+                      <span className="font-medium">{order.clientName}</span>
                       <span className="text-sm text-gray-600 ml-2">#{order.id}</span>
                     </div>
-                    <Badge className={getOrderStatusColor(order.status || 'onboarding')}>
-                      {getOrderStatusLabel(order.status || 'onboarding')}
+                    <Badge className={getOrderStatusColor(order.status)}>
+                      {getOrderStatusLabel(order.status)}
                     </Badge>
                   </div>
                 ))}

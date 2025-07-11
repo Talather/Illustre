@@ -7,23 +7,12 @@ import { CollaboratorStats } from "@/components/collaborator/CollaboratorStats";
 import { CollaboratorFilters } from "@/components/collaborator/CollaboratorFilters";
 import { OrderAccordion } from "@/components/collaborator/OrderAccordion";
 import { EmptyState } from "@/components/collaborator/EmptyState";
-import { RoleSwitcher } from "@/components/ui/RoleSwitcher";
-import { UserProfile } from "@/types/auth";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
 
 interface CollaboratorInterfaceProps {
   /** Current authenticated user profile */
-  user: UserProfile;
+  user: Profile;
   /** Callback function to handle user logout */
   onLogout: () => void;
-  /** Available roles for the user */
-  availableRoles?: string[];
-  /** Current selected role */
-  currentRole?: string;
-  /** Callback to change role */
-  onRoleChange?: (role: string) => void;
 }
 
 /**
@@ -52,7 +41,7 @@ interface CollaboratorInterfaceProps {
  * @param user - The authenticated collaborator's profile
  * @param onLogout - Function to handle user logout
  */
-const CollaboratorInterface = ({ user, onLogout, availableRoles = [], currentRole = 'collaborator', onRoleChange }: CollaboratorInterfaceProps) => {
+const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) => {
   // Filter state for product status
   const [statusFilter, setStatusFilter] = useState("all");
   
@@ -188,38 +177,7 @@ const CollaboratorInterface = ({ user, onLogout, availableRoles = [], currentRol
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header Section */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <div className="text-2xl font-avigea text-gradient-turquoise">
-                illustre!
-              </div>
-              <div className="hidden sm:block text-gray-300">|</div>
-              <div className="hidden sm:block text-gray-600">
-                Espace Collaborateur
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {availableRoles.length > 1 && onRoleChange && (
-                <RoleSwitcher
-                  currentRole={currentRole}
-                  availableRoles={availableRoles}
-                  onRoleChange={onRoleChange}
-                />
-              )}
-              <Badge variant="outline" className="bg-purple-100 text-purple-800">
-                Collaborateur
-              </Badge>
-              <Button variant="outline" onClick={onLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Déconnexion
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <CollaboratorHeader onLogout={onLogout} />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -3,15 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, ArrowLeft, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { RoleSwitcher } from "@/components/ui/RoleSwitcher";
-import { UserProfile } from "@/types/auth";
+import { Profile } from "@/lib/mockData";
 
 interface AdminHeaderProps {
-  user: UserProfile;
+  user: Profile;
   onLogout: () => void;
-  availableRoles?: string[];
-  currentRole?: string;
-  onRoleChange?: (role: string) => void;
 }
 
 /**
@@ -21,11 +17,10 @@ interface AdminHeaderProps {
  * - Navigation back to dashboard
  * - Brand logo and admin section indicator
  * - Admin badge with user role indication
- * - Role switcher for multi-role users
  * - Logout functionality
  * - Responsive design with mobile-friendly layout
  */
-export const AdminHeader = ({ user, onLogout, availableRoles = [], currentRole = 'admin', onRoleChange }: AdminHeaderProps) => {
+export const AdminHeader = ({ user, onLogout }: AdminHeaderProps) => {
   const navigate = useNavigate();
 
   return (
@@ -47,13 +42,6 @@ export const AdminHeader = ({ user, onLogout, availableRoles = [], currentRole =
           </div>
           
           <div className="flex items-center gap-4">
-            {availableRoles.length > 1 && onRoleChange && (
-              <RoleSwitcher
-                currentRole={currentRole}
-                availableRoles={availableRoles}
-                onRoleChange={onRoleChange}
-              />
-            )}
             <Badge variant="outline" className="bg-red-100 text-red-800">
               <Shield className="w-3 h-3 mr-1" />
               Admin
