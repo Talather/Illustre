@@ -15,6 +15,15 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Define the user interface type for components
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  roles: string[];
+  status: string;
+}
+
 const ProtectedRoutes = () => {
   const { user, profile, userRoles, loading } = useAuth();
 
@@ -44,11 +53,13 @@ const ProtectedRoutes = () => {
     // This will be handled by the auth context
   };
 
-  // Create user object for components
-  const userProfile = {
+  // Create user object for components with all required properties
+  const userProfile: UserProfile = {
     id: user.id,
     name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
     email: profile.email,
+    roles: userRoles.map(r => r.role),
+    status: 'active' // Default status
   };
 
   return (

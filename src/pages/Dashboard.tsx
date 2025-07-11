@@ -1,10 +1,10 @@
 
-import { useAuth } from "@/hooks/useAuth";
-
 interface UserProfile {
   id: string;
   name: string;
   email: string;
+  roles: string[];
+  status: string;
 }
 
 interface DashboardProps {
