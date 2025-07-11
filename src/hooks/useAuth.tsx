@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (loading) {
-        console.warn('Auth loading timeout - forcing completion');
+        console.warn('⏰ Auth loading timeout - forcing completion');
         setLoading(false);
         setError('Timeout lors du chargement de l\'authentification');
       }
@@ -48,25 +48,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log('🔍 Fetching user data for:', userId);
       
-      // Fetch profile avec fallback
+      // Fetch profile avec fallback robust
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      if (profileError) {
+      if (profileError && profileError.code !== 'PGRST116') {
         console.error('❌ Profile fetch error:', profileError);
-        // Ne pas bloquer si le profil n'existe pas
-        if (profileError.code !== 'PGRST116') { // PGRST116 = no rows returned
-          throw profileError;
-        }
+        throw new Error(`Erreur profil: ${profileError.message}`);
       }
 
       console.log('👤 Profile data:', profileData);
       setProfile(profileData);
 
-      // Fetch user roles avec fallback
+      // Fetch user roles avec fallback robust
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('*')
@@ -74,19 +71,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (rolesError) {
         console.error('❌ Roles fetch error:', rolesError);
-        // Continuer même si les rôles ne peuvent pas être récupérés
+        // Pour l'instant, continuer avec un tableau vide mais signaler l'erreur
+        console.warn('⚠️ Using empty roles array due to fetch error');
         setUserRoles([]);
       } else {
         console.log('🎭 User roles:', rolesData);
         setUserRoles(rolesData || []);
       }
 
-    } catch (error) {
+      // Vérifier si l'utilisateur a au moins un rôle ou un profil
+      if (!profileData && (!rolesData || rolesData.length === 0)) {
+        console.warn('⚠️ User has no profile and no roles');
+        setError('Votre compte n\'a pas encore été configuré. Contactez l\'administrateur.');
+        return;
+      }
+
+    } catch (error: any) {
       console.error('❌ Error fetching user data:', error);
-      setError('Erreur lors du chargement des données utilisateur');
-      // Ne pas bloquer l'app, continuer avec des données partielles
-      setProfile(null);
-      setUserRoles([]);
+      setError(error.message || 'Erreur lors du chargement des données utilisateur');
     }
   };
 
@@ -100,7 +102,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       });
     } else {
-      setLoading(false);
+      // Refetch session
+      supabase.auth.getSession().then(({ data: { session }, error }) => {
+        if (error) {
+          console.error('❌ Session retry error:', error);
+          setError('Erreur de session');
+        } else if (session?.user) {
+          fetchUserData(session.user.id).finally(() => {
+            setLoading(false);
+          });
+        } else {
+          setLoading(false);
+        }
+      });
     }
   };
 

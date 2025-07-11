@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { useRoleSelection } from "@/hooks/useRoleSelection";
 import { RoleSelector } from "@/components/auth/RoleSelector";
+import { AuthError } from "@/components/auth/AuthError";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import ClientInterface from "./pages/ClientInterface";
@@ -22,44 +24,47 @@ const ProtectedRoutes = () => {
   const availableRoles = userRoles.map(r => r.role);
   const { selectedRole, needsRoleSelection, selectRole, switchRole } = useRoleSelection(availableRoles);
 
-  // Affichage d'erreur avec possibilité de retry
+  // Affichage d'erreur avec interface dédiée
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 p-4">
-        <div className="text-center space-y-4">
-          <div className="text-red-600 text-xl font-medium">Erreur de chargement</div>
-          <div className="text-gray-600">{error}</div>
-          <button 
-            onClick={retry}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Réessayer
-          </button>
-          <div className="text-sm text-gray-500 mt-4">
-            <p>Informations de débogage :</p>
-            <p>User: {user ? '✅' : '❌'}</p>
-            <p>Profile: {profile ? '✅' : '❌'}</p>
-            <p>Roles: {userRoles.length > 0 ? `✅ (${userRoles.length})` : '❌'}</p>
-          </div>
-        </div>
-      </div>
+      <AuthError
+        error={error}
+        onRetry={retry}
+        debugInfo={{
+          hasUser: !!user,
+          hasProfile: !!profile,
+          rolesCount: userRoles.length
+        }}
+      />
     );
   }
 
-  // Affichage de chargement amélioré
+  // Affichage de chargement amélioré avec diagnostic
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-4 max-w-md">
           <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
           <div className="text-gray-600 text-xl font-medium">Chargement...</div>
           <div className="text-sm text-gray-500">
-            <p>Vérification de l'authentification</p>
-            <div className="mt-2 space-y-1">
-              <p>Session: {user ? '✅' : '⏳'}</p>
-              <p>Profil: {profile ? '✅' : '⏳'}</p>
-              <p>Rôles: {userRoles.length > 0 ? `✅ (${userRoles.length})` : '⏳'}</p>
+            <p className="mb-3">Vérification de l'authentification</p>
+            <div className="bg-white p-4 rounded-lg shadow-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <span>Session utilisateur:</span>
+                <span>{user ? '✅ Connecté' : '⏳ En cours...'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Profil utilisateur:</span>
+                <span>{profile ? '✅ Chargé' : '⏳ En cours...'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Rôles utilisateur:</span>
+                <span>{userRoles.length > 0 ? `✅ ${userRoles.length} rôle(s)` : '⏳ En cours...'}</span>
+              </div>
             </div>
+            <p className="text-xs mt-3 text-gray-400">
+              Si le chargement prend trop de temps, une erreur sera affichée automatiquement.
+            </p>
           </div>
         </div>
       </div>
