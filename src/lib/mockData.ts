@@ -3,6 +3,7 @@ export interface Profile {
   id: string;
   name: string;
   email: string;
+  company?: string;
   roles: string[];
   status: 'active' | 'inactive';
   avatar?: string;
@@ -42,18 +43,36 @@ export interface OrderProduct {
 export interface OnboardingStep {
   id: string;
   orderId: string;
-  step: 'contract_signed' | 'form_completed' | 'payment_made' | 'call_scheduled';
+  step: 'call_scheduled' | 'contract_signed' | 'payment_made' | 'form_completed';
   completed: boolean;
   completedAt?: string;
 }
 
-// Mock Users
+export interface ProductTemplate {
+  id: string;
+  name: string;
+  format: 'podcast' | 'scripted' | 'micro-interview';
+  basePrice: number;
+  stripeCheckoutUrl: string;
+  description: string;
+  quantity: number;
+}
+
+export interface CustomOption {
+  id: string;
+  name: string;
+  description: string;
+  stripeCheckoutUrl: string;
+}
+
+// Mock Users (Lead role removed)
 export const mockProfiles: Profile[] = [
   {
     id: '1',
     name: 'Marie Dubois',
-    email: 'marie@lead-example.com',
-    roles: ['lead'],
+    email: 'marie@client-example.com',
+    company: 'Innovation Corp',
+    roles: ['client'],
     status: 'active',
     avatar: '👩‍💼'
   },
@@ -61,6 +80,7 @@ export const mockProfiles: Profile[] = [
     id: '2',
     name: 'Jean Martin',
     email: 'jean@client-direct.com',
+    company: 'TechSolutions',
     roles: ['client'],
     status: 'active',
     avatar: '👨‍💼'
@@ -69,6 +89,7 @@ export const mockProfiles: Profile[] = [
     id: '3',
     name: 'Sophie Bernard',
     email: 'sophie@agency-partner.com',
+    company: 'Digital Agency',
     roles: ['client'],
     status: 'active',
     avatar: '👩‍💻'
@@ -77,6 +98,7 @@ export const mockProfiles: Profile[] = [
     id: '4',
     name: 'Pierre Durand',
     email: 'pierre@closer.com',
+    company: 'illustre!',
     roles: ['closer'],
     status: 'active',
     avatar: '👨‍💻'
@@ -85,6 +107,7 @@ export const mockProfiles: Profile[] = [
     id: '5',
     name: 'Laura Petit',
     email: 'laura@collaborator.com',
+    company: 'illustre!',
     roles: ['collaborator'],
     status: 'active',
     avatar: '👩‍🎨'
@@ -93,6 +116,7 @@ export const mockProfiles: Profile[] = [
     id: '6',
     name: 'Thomas Admin',
     email: 'thomas@admin.com',
+    company: 'illustre!',
     roles: ['admin'],
     status: 'active',
     avatar: '👨‍💼'
@@ -101,9 +125,104 @@ export const mockProfiles: Profile[] = [
     id: '7',
     name: 'Emma Multi-Role',
     email: 'emma@multi.com',
+    company: 'illustre!',
     roles: ['closer', 'collaborator'],
     status: 'active',
     avatar: '👩‍🔬'
+  },
+  {
+    id: '8',
+    name: 'Alexandre Client',
+    email: 'alex@startup.com',
+    company: 'StartupTech',
+    roles: ['client'],
+    status: 'active',
+    avatar: '👨‍💻'
+  }
+];
+
+// Product Templates with pre-filled Stripe URLs
+export const productTemplates: ProductTemplate[] = [
+  {
+    id: 'template-podcast-3',
+    name: '3 Vidéos Podcast',
+    format: 'podcast',
+    basePrice: 2400,
+    quantity: 3,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_3_videos',
+    description: '3 vidéos podcast professionnelles avec montage complet'
+  },
+  {
+    id: 'template-podcast-6',
+    name: '6 Vidéos Podcast',
+    format: 'podcast',
+    basePrice: 4500,
+    quantity: 6,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_6_videos',
+    description: '6 vidéos podcast avec package complet'
+  },
+  {
+    id: 'template-podcast-10',
+    name: '10 Vidéos Podcast',
+    format: 'podcast',
+    basePrice: 7000,
+    quantity: 10,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_10_videos',
+    description: '10 vidéos podcast - package premium'
+  },
+  {
+    id: 'template-scripted-3',
+    name: '3 Vidéos Scriptées',
+    format: 'scripted',
+    basePrice: 3600,
+    quantity: 3,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_3_videos',
+    description: '3 vidéos scriptées avec scénarios sur mesure'
+  },
+  {
+    id: 'template-scripted-6',
+    name: '6 Vidéos Scriptées',
+    format: 'scripted',
+    basePrice: 6800,
+    quantity: 6,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_6_videos',
+    description: '6 vidéos scriptées complètes'
+  },
+  {
+    id: 'template-scripted-10',
+    name: '10 Vidéos Scriptées',
+    format: 'scripted',
+    basePrice: 10500,
+    quantity: 10,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_10_videos',
+    description: '10 vidéos scriptées - solution complète'
+  },
+  {
+    id: 'template-micro-3',
+    name: '3 Micro-trottoirs',
+    format: 'micro-interview',
+    basePrice: 1800,
+    quantity: 3,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_3_videos',
+    description: '3 micro-trottoirs dynamiques'
+  },
+  {
+    id: 'template-micro-6',
+    name: '6 Micro-trottoirs',
+    format: 'micro-interview',
+    basePrice: 3300,
+    quantity: 6,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_6_videos',
+    description: '6 micro-trottoirs avec montage créatif'
+  },
+  {
+    id: 'template-micro-10',
+    name: '10 Micro-trottoirs',
+    format: 'micro-interview',
+    basePrice: 5000,
+    quantity: 10,
+    stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_10_videos',
+    description: '10 micro-trottoirs - package optimal'
   }
 ];
 
@@ -136,8 +255,24 @@ export const mockOrders: Order[] = [
     id: 'ord-003',
     clientId: '1',
     clientName: 'Marie Dubois',
-    status: 'onboarding',
+    status: 'completed',
     createdAt: '2024-01-25',
+    isSubcontracted: false
+  },
+  {
+    id: 'ord-004',
+    clientId: '8',
+    clientName: 'Alexandre Client',
+    status: 'onboarding',
+    createdAt: '2024-02-01',
+    isSubcontracted: false
+  },
+  {
+    id: 'ord-005',
+    clientId: '2',
+    clientName: 'Jean Martin',
+    status: 'onboarding',
+    createdAt: '2024-02-05',
     isSubcontracted: false
   }
 ];
@@ -188,25 +323,37 @@ export const mockOrderProducts: OrderProduct[] = [
   }
 ];
 
-// Mock Onboarding Steps
+// Mock Onboarding Steps (corrected order)
 export const mockOnboardingSteps: OnboardingStep[] = [
   // Order 1 - Complete
-  { id: 'step-001', orderId: 'ord-001', step: 'contract_signed', completed: true, completedAt: '2024-01-16' },
-  { id: 'step-002', orderId: 'ord-001', step: 'form_completed', completed: true, completedAt: '2024-01-17' },
+  { id: 'step-001', orderId: 'ord-001', step: 'call_scheduled', completed: true, completedAt: '2024-01-16' },
+  { id: 'step-002', orderId: 'ord-001', step: 'contract_signed', completed: true, completedAt: '2024-01-17' },
   { id: 'step-003', orderId: 'ord-001', step: 'payment_made', completed: true, completedAt: '2024-01-18' },
-  { id: 'step-004', orderId: 'ord-001', step: 'call_scheduled', completed: true, completedAt: '2024-01-19' },
+  { id: 'step-004', orderId: 'ord-001', step: 'form_completed', completed: true, completedAt: '2024-01-19' },
   
   // Order 2 - Partial
-  { id: 'step-005', orderId: 'ord-002', step: 'contract_signed', completed: false },
-  { id: 'step-006', orderId: 'ord-002', step: 'form_completed', completed: true, completedAt: '2024-01-21' },
+  { id: 'step-005', orderId: 'ord-002', step: 'call_scheduled', completed: true, completedAt: '2024-01-21' },
+  { id: 'step-006', orderId: 'ord-002', step: 'contract_signed', completed: false },
   { id: 'step-007', orderId: 'ord-002', step: 'payment_made', completed: false },
-  { id: 'step-008', orderId: 'ord-002', step: 'call_scheduled', completed: false },
+  { id: 'step-008', orderId: 'ord-002', step: 'form_completed', completed: false },
   
-  // Order 3 - Just started
-  { id: 'step-009', orderId: 'ord-003', step: 'contract_signed', completed: false },
-  { id: 'step-010', orderId: 'ord-003', step: 'form_completed', completed: false },
-  { id: 'step-011', orderId: 'ord-003', step: 'payment_made', completed: false },
-  { id: 'step-012', orderId: 'ord-003', step: 'call_scheduled', completed: false }
+  // Order 3 - Complete
+  { id: 'step-009', orderId: 'ord-003', step: 'call_scheduled', completed: true, completedAt: '2024-01-26' },
+  { id: 'step-010', orderId: 'ord-003', step: 'contract_signed', completed: true, completedAt: '2024-01-27' },
+  { id: 'step-011', orderId: 'ord-003', step: 'payment_made', completed: true, completedAt: '2024-01-28' },
+  { id: 'step-012', orderId: 'ord-003', step: 'form_completed', completed: true, completedAt: '2024-01-29' },
+
+  // Order 4 - Just started
+  { id: 'step-013', orderId: 'ord-004', step: 'call_scheduled', completed: false },
+  { id: 'step-014', orderId: 'ord-004', step: 'contract_signed', completed: false },
+  { id: 'step-015', orderId: 'ord-004', step: 'payment_made', completed: false },
+  { id: 'step-016', orderId: 'ord-004', step: 'form_completed', completed: false },
+
+  // Order 5 - New order
+  { id: 'step-017', orderId: 'ord-005', step: 'call_scheduled', completed: false },
+  { id: 'step-018', orderId: 'ord-005', step: 'contract_signed', completed: false },
+  { id: 'step-019', orderId: 'ord-005', step: 'payment_made', completed: false },
+  { id: 'step-020', orderId: 'ord-005', step: 'form_completed', completed: false }
 ];
 
 // Auth simulation

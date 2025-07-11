@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,12 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Profile, mockOrderProducts, mockOrders } from "@/lib/mockData";
 import { toast } from "@/hooks/use-toast";
 import { 
   LogOut, 
-  ArrowLeft, 
   Calendar,
   Filter,
   Upload,
@@ -22,9 +20,9 @@ import {
   Video,
   ExternalLink,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Edit
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 interface CollaboratorInterfaceProps {
   user: Profile;
@@ -32,25 +30,53 @@ interface CollaboratorInterfaceProps {
 }
 
 const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) => {
-  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [editingFrameLink, setEditingFrameLink] = useState<{[key: string]: string}>({});
 
   // Get products assigned to current user
   const assignedProducts = mockOrderProducts.filter(product => 
     product.responsible === user.name
   );
 
+  // Group products by order
+  const productsByOrder = assignedProducts.reduce((acc, product) => {
+    const order = mockOrders.find(o => 
+      mockOrderProducts.some(p => p.orderId === o.id && p.id === product.id)
+    );
+    if (order) {
+      if (!acc[order.id]) {
+        acc[order.id] = {
+          order,
+          products: []
+        };
+      }
+      acc[order.id].products.push(product);
+    }
+    return acc;
+  }, {} as Record<string, {order: any, products: any[]}>);
+
   // Filter products based on status
-  const filteredProducts = assignedProducts.filter(product => {
-    if (statusFilter === "all") return true;
-    return product.status === statusFilter;
-  });
+  const filteredProductsByOrder = Object.entries(productsByOrder).reduce((acc, [orderId, data]) => {
+    const filteredProducts = data.products.filter(product => {
+      if (statusFilter === "all") return true;
+      return product.status === statusFilter;
+    });
+    if (filteredProducts.length > 0) {
+      acc[orderId] = {
+        ...data,
+        products: filteredProducts
+      };
+    }
+    return acc;
+  }, {} as Record<string, {order: any, products: any[]}>);
 
   // Sort by next action date
-  const sortedProducts = [...filteredProducts].sort((a, b) => 
-    new Date(a.nextActionDate).getTime() - new Date(b.nextActionDate).getTime()
-  );
+  const sortedProductsByOrder = Object.entries(filteredProductsByOrder)
+    .sort(([, a], [, b]) => {
+      const aEarliest = Math.min(...a.products.map(p => new Date(p.nextActionDate).getTime()));
+      const bEarliest = Math.min(...b.products.map(p => new Date(p.nextActionDate).getTime()));
+      return aEarliest - bEarliest;
+    });
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -89,7 +115,6 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
       description: "Le client va recevoir un email avec le lien de dépôt",
     });
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     toast({
@@ -104,13 +129,23 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
       description: "Le client va recevoir une notification",
     });
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     toast({
       title: "Notification envoyée",
       description: "Le client peut maintenant voir le livrable",
     });
+  };
+
+  const handleUpdateFrameLink = (productId: string) => {
+    const newLink = editingFrameLink[productId];
+    if (newLink) {
+      toast({
+        title: "Lien Frame.io mis à jour",
+        description: "Le nouveau lien de partage a été enregistré",
+      });
+      setEditingFrameLink(prev => ({ ...prev, [productId]: "" }));
+    }
   };
 
   const handleViewInstructions = (productId: string) => {
@@ -142,6 +177,8 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
     return { level: 'normal', color: 'text-green-600', label: 'Normal' };
   };
 
+  const totalProductsCount = Object.values(filteredProductsByOrder).reduce((sum, data) => sum + data.products.length, 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
@@ -149,10 +186,6 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour
-              </Button>
               <div className="text-2xl font-avigea text-gradient-turquoise">
                 illustre!
               </div>
@@ -182,7 +215,7 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
             Espace Production 🎬
           </h1>
           <p className="text-gray-600">
-            Gérez vos projets assignés et suivez l'avancement de la production.
+            Vue calendrier des projets - Gérez vos commandes et produits assignés.
           </p>
         </div>
 
@@ -270,124 +303,180 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
                 </SelectContent>
               </Select>
               <div className="text-sm text-gray-600">
-                {filteredProducts.length} projet(s) affiché(s)
+                {totalProductsCount} produit(s) affiché(s) dans {sortedProductsByOrder.length} commande(s)
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Projects List */}
-        <div className="space-y-4">
-          {sortedProducts.map((product) => {
-            const urgency = getUrgencyLevel(product.nextActionDate);
-            const order = mockOrders.find(o => 
-              mockOrderProducts.some(p => p.orderId === o.id && p.id === product.id)
-            );
-            
-            return (
-              <Card key={product.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="text-2xl">{getFormatIcon(product.format)}</div>
-                        <div>
-                          <h3 className="font-semibold text-lg">{product.title}</h3>
-                          <p className="text-gray-600 text-sm">
-                            Client: {order?.clientName} • Format: {product.format}
+        {/* Orders Accordion */}
+        {sortedProductsByOrder.length > 0 ? (
+          <Accordion type="multiple" className="space-y-4">
+            {sortedProductsByOrder.map(([orderId, { order, products }]) => (
+              <AccordionItem key={orderId} value={orderId}>
+                <Card>
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-4">
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                        <div className="text-left">
+                          <h3 className="font-semibold text-lg">Commande #{order.id}</h3>
+                          <p className="text-sm text-gray-600">
+                            Client: {order.clientName} • {products.length} produit(s)
                           </p>
                         </div>
                       </div>
-
-                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <h4 className="font-medium mb-2">Instructions</h4>
-                        <p className="text-sm text-gray-700">{product.instructions}</p>
-                      </div>
-
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          <span>Prochaine action:</span>
-                          <span className={`font-medium ${urgency.color}`}>
-                            {new Date(product.nextActionDate).toLocaleDateString('fr-FR')}
-                          </span>
-                          <Badge variant="outline" className={urgency.color}>
-                            {urgency.label}
-                          </Badge>
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <Badge className={
+                          order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          order.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                          'bg-orange-100 text-orange-800'
+                        }>
+                          {order.status === 'completed' ? 'Terminé' :
+                           order.status === 'in_progress' ? 'En cours' : 'Onboarding'}
+                        </Badge>
                       </div>
                     </div>
-
-                    <div className="flex flex-col items-end gap-3">
-                      <Badge className={getStatusColor(product.status)}>
-                        {getStatusLabel(product.status)}
-                      </Badge>
-
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewInstructions(product.id)}
-                        >
-                          <FileText className="w-4 h-4" />
-                        </Button>
+                  </AccordionTrigger>
+                  
+                  <AccordionContent>
+                    <div className="px-6 pb-6 space-y-4">
+                      {products.map((product) => {
+                        const urgency = getUrgencyLevel(product.nextActionDate);
                         
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewPreparation(product.preparationLink)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
+                        return (
+                          <Card key={product.id} className="border-l-4 border-l-primary">
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <div className="text-2xl">{getFormatIcon(product.format)}</div>
+                                    <div>
+                                      <h4 className="font-semibold text-lg">{product.title}</h4>
+                                      <p className="text-gray-600 text-sm">
+                                        Format: {product.format} • Prix: {product.price}€
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                                    <h5 className="font-medium mb-2">Instructions</h5>
+                                    <p className="text-sm text-gray-700">{product.instructions}</p>
+                                  </div>
+
+                                  <div className="flex items-center gap-4 text-sm mb-4">
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="w-4 h-4" />
+                                      <span>Prochaine action:</span>
+                                      <span className={`font-medium ${urgency.color}`}>
+                                        {new Date(product.nextActionDate).toLocaleDateString('fr-FR')}
+                                      </span>
+                                      <Badge variant="outline" className={urgency.color}>
+                                        {urgency.label}
+                                      </Badge>
+                                    </div>
+                                  </div>
+
+                                  {/* Frame.io Link Editor */}
+                                  <div className="mb-4 p-3 border rounded-lg">
+                                    <h5 className="font-medium mb-2">Lien Frame.io</h5>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        placeholder="Nouveau lien de partage Frame.io"
+                                        value={editingFrameLink[product.id] || ""}
+                                        onChange={(e) => setEditingFrameLink(prev => ({ 
+                                          ...prev, 
+                                          [product.id]: e.target.value 
+                                        }))}
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => handleUpdateFrameLink(product.id)}
+                                        disabled={!editingFrameLink[product.id]}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Actuel: {product.deliverableLink}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-3">
+                                  <Badge className={getStatusColor(product.status)}>
+                                    {getStatusLabel(product.status)}
+                                  </Badge>
+
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewInstructions(product.id)}
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </Button>
+                                    
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleViewPreparation(product.preparationLink)}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="mt-4 pt-4 border-t flex gap-3">
+                                {product.status === 'pending' && (
+                                  <Button
+                                    onClick={() => handleRequestFiles(product.id)}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                                  >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Demander les fichiers
+                                  </Button>
+                                )}
+                                
+                                {product.status === 'in_production' && (
+                                  <Button
+                                    onClick={() => handleDepositDeliverable(product.id)}
+                                    className="bg-green-500 hover:bg-green-600 text-white"
+                                  >
+                                    <Send className="w-4 h-4 mr-2" />
+                                    Déposer le livrable
+                                  </Button>
+                                )}
+
+                                <Button
+                                  variant="outline"
+                                  onClick={() => window.open(product.deliverableLink, '_blank')}
+                                >
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  Frame.io
+                                </Button>
+                                
+                                <Button
+                                  variant="outline"
+                                  onClick={() => window.open(product.fileDepositLink, '_blank')}
+                                >
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  Dropbox
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="mt-4 pt-4 border-t flex gap-3">
-                    {product.status === 'pending' && (
-                      <Button
-                        onClick={() => handleRequestFiles(product.id)}
-                        className="bg-orange-500 hover:bg-orange-600 text-white"
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Demander les fichiers
-                      </Button>
-                    )}
-                    
-                    {product.status === 'in_production' && (
-                      <Button
-                        onClick={() => handleDepositDeliverable(product.id)}
-                        className="bg-green-500 hover:bg-green-600 text-white"
-                      >
-                        <Send className="w-4 h-4 mr-2" />
-                        Déposer le livrable
-                      </Button>
-                    )}
-
-                    <Button
-                      variant="outline"
-                      onClick={() => window.open(product.deliverableLink, '_blank')}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Frame.io
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      onClick={() => window.open(product.fileDepositLink, '_blank')}
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Dropbox
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {filteredProducts.length === 0 && (
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        ) : (
           <Card>
             <CardContent className="p-12 text-center">
               <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />

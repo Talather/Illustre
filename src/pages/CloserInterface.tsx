@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,20 +7,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Profile, mockProfiles, mockOrders, mockOrderProducts } from "@/lib/mockData";
+import { Profile, mockProfiles, mockOrders, productTemplates, ProductTemplate } from "@/lib/mockData";
 import { toast } from "@/hooks/use-toast";
 import { 
   LogOut, 
   ArrowLeft, 
   Plus,
-  Users,
   ShoppingCart,
-  Package,
   Send,
   UserPlus,
-  FileText,
   DollarSign,
-  Settings
+  Settings,
+  Edit,
+  Package,
+  ExternalLink
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -30,9 +29,14 @@ interface CloserInterfaceProps {
   onLogout: () => void;
 }
 
+interface CustomOption {
+  name: string;
+  description: string;
+  stripeUrl: string;
+}
+
 const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
   const navigate = useNavigate();
-  const [selectedClient, setSelectedClient] = useState("");
   const [newClientData, setNewClientData] = useState({
     name: "",
     email: "",
@@ -40,19 +44,17 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
   });
   const [newOrderData, setNewOrderData] = useState({
     clientId: "",
-    products: [] as Array<{
-      title: string;
-      format: string;
-      price: number;
-      instructions: string;
-    }>
+    name: "",
+    selectedTemplate: null as ProductTemplate | null,
+    customOptions: [] as CustomOption[]
   });
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
-  // Get existing clients (exclude current user and other closers/admins)
+  // Get existing clients
   const existingClients = mockProfiles.filter(p => 
-    p.roles.includes('client') || p.roles.includes('lead')
+    p.roles.includes('client')
   );
 
   // Get existing orders
@@ -69,7 +71,6 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
     }
 
     setIsCreatingClient(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     toast({
@@ -81,46 +82,55 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
     setIsCreatingClient(false);
   };
 
-  const handleAddProduct = () => {
+  const handleSelectTemplate = (template: ProductTemplate) => {
     setNewOrderData(prev => ({
       ...prev,
-      products: [...prev.products, {
-        title: "",
-        format: "podcast",
-        price: 0,
-        instructions: ""
+      selectedTemplate: template
+    }));
+    toast({
+      title: "Template sélectionné",
+      description: `${template.name} - ${template.basePrice}€`,
+    });
+  };
+
+  const handleAddCustomOption = () => {
+    setNewOrderData(prev => ({
+      ...prev,
+      customOptions: [...prev.customOptions, {
+        name: "",
+        description: "",
+        stripeUrl: ""
       }]
     }));
   };
 
-  const handleRemoveProduct = (index: number) => {
+  const handleUpdateCustomOption = (index: number, field: string, value: string) => {
     setNewOrderData(prev => ({
       ...prev,
-      products: prev.products.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleUpdateProduct = (index: number, field: string, value: any) => {
-    setNewOrderData(prev => ({
-      ...prev,
-      products: prev.products.map((product, i) => 
-        i === index ? { ...product, [field]: value } : product
+      customOptions: prev.customOptions.map((option, i) => 
+        i === index ? { ...option, [field]: value } : option
       )
     }));
   };
 
+  const handleRemoveCustomOption = (index: number) => {
+    setNewOrderData(prev => ({
+      ...prev,
+      customOptions: prev.customOptions.filter((_, i) => i !== index)
+    }));
+  };
+
   const handleCreateOrder = async () => {
-    if (!newOrderData.clientId || newOrderData.products.length === 0) {
+    if (!newOrderData.clientId || !newOrderData.name || !newOrderData.selectedTemplate) {
       toast({
         title: "Erreur",
-        description: "Sélectionnez un client et ajoutez au moins un produit",
+        description: "Sélectionnez un client, nom de commande et un template",
         variant: "destructive"
       });
       return;
     }
 
     setIsCreatingOrder(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     toast({
@@ -128,7 +138,12 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       description: "La commande a été créée avec succès",
     });
 
-    setNewOrderData({ clientId: "", products: [] });
+    setNewOrderData({ 
+      clientId: "", 
+      name: "",
+      selectedTemplate: null, 
+      customOptions: [] 
+    });
     setIsCreatingOrder(false);
   };
 
@@ -138,7 +153,6 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       description: "Génération des liens et envoi des emails...",
     });
 
-    // Simulate onboarding launch
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     toast({
@@ -147,7 +161,15 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
     });
   };
 
-  const totalOrderValue = newOrderData.products.reduce((sum, product) => sum + product.price, 0);
+  const getTotalPrice = () => {
+    return (newOrderData.selectedTemplate?.basePrice || 0);
+  };
+
+  const groupedTemplates = {
+    podcast: productTemplates.filter(t => t.format === 'podcast'),
+    scripted: productTemplates.filter(t => t.format === 'scripted'),
+    'micro-interview': productTemplates.filter(t => t.format === 'micro-interview')
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -156,10 +178,6 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour
-              </Button>
               <div className="text-2xl font-avigea text-gradient-turquoise">
                 illustre!
               </div>
@@ -189,15 +207,14 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
             Interface Closer 💼
           </h1>
           <p className="text-gray-600">
-            Gérez vos clients, créez des commandes et lancez les processus d'onboarding.
+            Gérez vos clients, créez des commandes avec templates prédéfinis et lancez les processus d'onboarding.
           </p>
         </div>
 
         <Tabs defaultValue="create" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="create">Créer</TabsTrigger>
             <TabsTrigger value="orders">Commandes</TabsTrigger>
-            <TabsTrigger value="clients">Clients</TabsTrigger>
           </TabsList>
 
           {/* Create Tab */}
@@ -258,7 +275,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                     Créer une commande
                   </CardTitle>
                   <CardDescription>
-                    Créez une nouvelle commande pour un client existant
+                    Créez une nouvelle commande avec templates prédéfinis
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -280,78 +297,115 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                     </Select>
                   </div>
 
-                  {/* Products */}
+                  <div>
+                    <label className="text-sm font-medium">Nom de la commande *</label>
+                    <Input
+                      placeholder="ex: Campagne Podcast Q1 2024"
+                      value={newOrderData.name}
+                      onChange={(e) => setNewOrderData(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Template Selection */}
+                  <div>
+                    <label className="text-sm font-medium">Template produit *</label>
+                    <div className="space-y-4 mt-2">
+                      {Object.entries(groupedTemplates).map(([format, templates]) => (
+                        <div key={format} className="space-y-2">
+                          <h4 className="font-medium text-sm capitalize">
+                            {format === 'podcast' ? 'Podcast' :
+                             format === 'scripted' ? 'Scripté' :
+                             'Micro-trottoir'}
+                          </h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            {templates.map((template) => (
+                              <div
+                                key={template.id}
+                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                  newOrderData.selectedTemplate?.id === template.id
+                                    ? 'border-primary bg-primary/5'
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                                onClick={() => handleSelectTemplate(template)}
+                              >
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <div className="font-medium text-sm">{template.name}</div>
+                                    <div className="text-xs text-gray-600">{template.description}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-bold text-sm">{template.basePrice}€</div>
+                                    <div className="text-xs text-gray-500">{template.quantity} vidéos</div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Custom Options */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium">Produits</label>
-                      <Button variant="outline" size="sm" onClick={handleAddProduct}>
+                      <label className="text-sm font-medium">Options personnalisées</label>
+                      <Button variant="outline" size="sm" onClick={handleAddCustomOption}>
                         <Plus className="w-4 h-4 mr-1" />
-                        Ajouter
+                        Ajouter option
                       </Button>
                     </div>
                     
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
-                      {newOrderData.products.map((product, index) => (
+                    <div className="space-y-3 max-h-40 overflow-y-auto">
+                      {newOrderData.customOptions.map((option, index) => (
                         <div key={index} className="p-3 border rounded-lg space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Produit {index + 1}</span>
+                            <span className="text-sm font-medium">Option {index + 1}</span>
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => handleRemoveProduct(index)}
+                              onClick={() => handleRemoveCustomOption(index)}
                               className="text-red-600 hover:text-red-700"
                             >
                               Supprimer
                             </Button>
                           </div>
                           <Input
-                            placeholder="Titre du produit"
-                            value={product.title}
-                            onChange={(e) => handleUpdateProduct(index, 'title', e.target.value)}
+                            placeholder="Nom de l'option"
+                            value={option.name}
+                            onChange={(e) => handleUpdateCustomOption(index, 'name', e.target.value)}
                           />
-                          <div className="grid grid-cols-2 gap-2">
-                            <Select value={product.format} onValueChange={(value) => 
-                              handleUpdateProduct(index, 'format', value)
-                            }>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="podcast">Podcast</SelectItem>
-                                <SelectItem value="scripted">Scripté</SelectItem>
-                                <SelectItem value="micro-interview">Micro-interview</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              type="number"
-                              placeholder="Prix"
-                              value={product.price}
-                              onChange={(e) => handleUpdateProduct(index, 'price', Number(e.target.value))}
-                            />
-                          </div>
                           <Textarea
-                            placeholder="Instructions spécifiques"
-                            value={product.instructions}
-                            onChange={(e) => handleUpdateProduct(index, 'instructions', e.target.value)}
+                            placeholder="Description"
+                            value={option.description}
+                            onChange={(e) => handleUpdateCustomOption(index, 'description', e.target.value)}
                             rows={2}
+                          />
+                          <Input
+                            placeholder="Lien Stripe checkout"
+                            value={option.stripeUrl}
+                            onChange={(e) => handleUpdateCustomOption(index, 'stripeUrl', e.target.value)}
                           />
                         </div>
                       ))}
                     </div>
-
-                    {newOrderData.products.length > 0 && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between font-medium">
-                          <span>Total de la commande:</span>
-                          <span className="text-lg">{totalOrderValue}€</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
+
+                  {newOrderData.selectedTemplate && (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between font-medium">
+                        <span>Prix du template:</span>
+                        <span className="text-lg">{getTotalPrice()}€</span>
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        Options personnalisées facturées séparément
+                      </div>
+                    </div>
+                  )}
 
                   <Button 
                     onClick={handleCreateOrder}
-                    disabled={isCreatingOrder || !newOrderData.clientId || newOrderData.products.length === 0}
+                    disabled={isCreatingOrder || !newOrderData.clientId || !newOrderData.selectedTemplate}
                     className="w-full bg-gradient-turquoise hover:opacity-90"
                   >
                     {isCreatingOrder ? "Création..." : "Créer la commande"}
@@ -384,41 +438,25 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                           {order.status === 'completed' ? 'Terminé' :
                            order.status === 'in_progress' ? 'En cours' : 'Onboarding'}
                         </Badge>
+                        
                         {order.status === 'onboarding' && (
-                          <Button
-                            onClick={() => handleLaunchOnboarding(order.id)}
-                            className="bg-gradient-turquoise hover:opacity-90"
-                          >
-                            <Send className="w-4 h-4 mr-2" />
-                            Lancer l'onboarding
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              onClick={() => setEditingOrderId(order.id)}
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Modifier
+                            </Button>
+                            <Button
+                              onClick={() => handleLaunchOnboarding(order.id)}
+                              className="bg-gradient-turquoise hover:opacity-90"
+                            >
+                              <Send className="w-4 h-4 mr-2" />
+                              Lancer l'onboarding
+                            </Button>
+                          </>
                         )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Clients Tab */}
-          <TabsContent value="clients" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {existingClients.map((client) => (
-                <Card key={client.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{client.avatar}</div>
-                      <div>
-                        <h3 className="font-medium">{client.name}</h3>
-                        <p className="text-sm text-gray-600">{client.email}</p>
-                        <div className="flex gap-1 mt-1">
-                          {client.roles.map((role) => (
-                            <Badge key={role} variant="outline" className="text-xs">
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
                       </div>
                     </div>
                   </CardContent>

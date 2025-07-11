@@ -35,7 +35,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           description: `Bienvenue ${user.name} !`,
         });
         onLogin(user);
-        navigate('/dashboard');
+        // Auto-redirect based on user roles
+        const defaultRoute = user.roles.includes('admin') ? '/admin' :
+                            user.roles.includes('closer') ? '/closer' :
+                            user.roles.includes('collaborator') ? '/collaborator' :
+                            '/client';
+        navigate(defaultRoute);
       }
     } else {
       toast({
@@ -56,12 +61,16 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
       description: `Connecté en tant que ${user.name}`,
     });
     onLogin(user);
-    navigate('/dashboard');
+    // Auto-redirect based on user roles
+    const defaultRoute = user.roles.includes('admin') ? '/admin' :
+                        user.roles.includes('closer') ? '/closer' :
+                        user.roles.includes('collaborator') ? '/collaborator' :
+                        '/client';
+    navigate(defaultRoute);
   };
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
-      lead: "bg-yellow-100 text-yellow-800",
       client: "bg-blue-100 text-blue-800",
       closer: "bg-green-100 text-green-800",
       collaborator: "bg-purple-100 text-purple-800",

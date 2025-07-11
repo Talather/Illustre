@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { mockAuth, Profile } from "@/lib/mockData";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
-import LeadInterface from "./pages/LeadInterface";
 import ClientInterface from "./pages/ClientInterface";
 import CloserInterface from "./pages/CloserInterface";
 import CollaboratorInterface from "./pages/CollaboratorInterface";
@@ -26,6 +25,15 @@ const App = () => {
     setCurrentUser(user);
     setLoading(false);
   }, []);
+
+  // Auto-redirect based on user roles
+  const getDefaultRoute = (user: Profile) => {
+    if (user.roles.includes('admin')) return '/admin';
+    if (user.roles.includes('closer')) return '/closer';
+    if (user.roles.includes('collaborator')) return '/collaborator';
+    if (user.roles.includes('client')) return '/client';
+    return '/client'; // Default fallback
+  };
 
   const handleLogin = (user: Profile) => {
     setCurrentUser(user);
@@ -58,13 +66,11 @@ const App = () => {
               </>
             ) : (
               <>
-                <Route path="/dashboard" element={<Dashboard user={currentUser} onLogout={handleLogout} />} />
-                <Route path="/lead" element={<LeadInterface user={currentUser} onLogout={handleLogout} />} />
                 <Route path="/client" element={<ClientInterface user={currentUser} onLogout={handleLogout} />} />
                 <Route path="/closer" element={<CloserInterface user={currentUser} onLogout={handleLogout} />} />
                 <Route path="/collaborator" element={<CollaboratorInterface user={currentUser} onLogout={handleLogout} />} />
                 <Route path="/admin" element={<AdminInterface user={currentUser} onLogout={handleLogout} />} />
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/" element={<Navigate to={getDefaultRoute(currentUser)} replace />} />
                 <Route path="*" element={<NotFound />} />
               </>
             )}
