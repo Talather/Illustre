@@ -13,7 +13,6 @@ interface Product {
   status: string;
   deliverableLink: string;
   preparationLink: string;
-  nextActionDate: string;
   responsible: string;
   instructions: string;
   revisions?: Array<{
@@ -47,6 +46,7 @@ interface OrderAccordionProps {
  * - Order status badges and product count
  * - Nested ProductCard components for each product
  * - Handles revision requests and file access
+ * - Clean design without next action date references
  */
 export const OrderAccordion = ({
   ordersByClient,

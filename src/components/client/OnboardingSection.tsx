@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,8 @@ import {
   FileText,
   Calendar,
   CreditCard,
-  Plus
+  Plus,
+  Phone
 } from "lucide-react";
 
 interface OnboardingStep {
@@ -21,21 +23,17 @@ interface OnboardingStep {
   icon: React.ComponentType<any>;
 }
 
+interface Order {
+  id: string;
+  clientName: string;
+  status: string;
+}
+
 interface OnboardingSectionProps {
-  /** Current order data */
-  currentOrder?: {
-    id: string;
-    clientName: string;
-    status: string;
-  };
-  /** All orders for the client */
-  allOrders: Array<{
-    id: string;
-    clientName: string;
-    status: string;
-  }>;
-  /** Onboarding steps for current order */
-  onboardingSteps: OnboardingStep[];
+  /** All orders for the client, sorted by creation date (newest first) */
+  allOrders: Order[];
+  /** Onboarding steps grouped by order ID */
+  onboardingStepsByOrder: Record<string, OnboardingStep[]>;
   /** Whether user has any orders */
   hasOrders: boolean;
   /** Callback to start new onboarding */
@@ -43,54 +41,77 @@ interface OnboardingSectionProps {
 }
 
 /**
- * OnboardingSection - Prominent section at the top of client interface
+ * OnboardingSection - Manages onboarding progress for all client orders
  * 
- * Features:
- * - Shows current order onboarding progress if orders exist
+ * Key Features:
+ * - Shows individual onboarding blocks for each order in onboarding status
+ * - Orders are displayed from newest to oldest
+ * - Correct onboarding step order: Call → Contract → Payment → Form
  * - Big "Start Onboarding" button if no orders exist
- * - "New Order" button and existing orders list if orders exist
- * - Progress tracking with step completion
+ * - "New Order" button to create additional orders
+ * - Progress tracking with visual step completion indicators
+ * 
+ * Order Processing Logic:
+ * 1. New orders appear at the top with their own onboarding block
+ * 2. Only orders with 'onboarding' status show onboarding progress
+ * 3. Completed/in-progress orders don't show onboarding blocks
  */
 export const OnboardingSection = ({
-  currentOrder,
   allOrders,
-  onboardingSteps,
+  onboardingStepsByOrder,
   hasOrders,
   onStartOnboarding
 }: OnboardingSectionProps) => {
   const [newOrderTitle, setNewOrderTitle] = useState("");
   const [showNewOrderForm, setShowNewOrderForm] = useState(false);
 
-  const steps = [
-    {
-      id: 'contract_signed',
-      title: 'Contrat signé',
-      completed: onboardingSteps.find(s => s.id === 'contract_signed')?.completed || false,
-      icon: FileText
-    },
-    {
-      id: 'form_completed', 
-      title: 'Formulaire complété',
-      completed: onboardingSteps.find(s => s.id === 'form_completed')?.completed || false,
-      icon: CheckCircle
-    },
-    {
-      id: 'payment_made',
-      title: 'Paiement effectué',
-      completed: onboardingSteps.find(s => s.id === 'payment_made')?.completed || false,
-      icon: CreditCard
-    },
-    {
-      id: 'call_scheduled',
-      title: 'Appel planifié',
-      completed: onboardingSteps.find(s => s.id === 'call_scheduled')?.completed || false,
-      icon: Calendar
-    }
-  ];
+  /**
+   * Define the correct onboarding step order and configuration
+   * Order: Call Scheduled → Contract Signed → Payment Made → Form Completed
+   */
+  const getStepsForOrder = (orderId: string): OnboardingStep[] => {
+    const orderSteps = onboardingStepsByOrder[orderId] || [];
+    
+    return [
+      {
+        id: 'call_scheduled',
+        title: 'Appel d\'Onboarding',
+        completed: orderSteps.find(s => s.id === 'call_scheduled')?.completed || false,
+        icon: Phone
+      },
+      {
+        id: 'contract_signed', 
+        title: 'Signature du contrat',
+        completed: orderSteps.find(s => s.id === 'contract_signed')?.completed || false,
+        icon: FileText
+      },
+      {
+        id: 'payment_made',
+        title: 'Paiement',
+        completed: orderSteps.find(s => s.id === 'payment_made')?.completed || false,
+        icon: CreditCard
+      },
+      {
+        id: 'form_completed',
+        title: 'Formulaire d\'Onboarding',
+        completed: orderSteps.find(s => s.id === 'form_completed')?.completed || false,
+        icon: CheckCircle
+      }
+    ];
+  };
 
-  const completedSteps = steps.filter(step => step.completed).length;
-  const progressPercentage = (completedSteps / steps.length) * 100;
+  /**
+   * Calculate progress percentage for an order
+   */
+  const calculateProgress = (orderId: string): number => {
+    const steps = getStepsForOrder(orderId);
+    const completedSteps = steps.filter(step => step.completed).length;
+    return (completedSteps / steps.length) * 100;
+  };
 
+  /**
+   * Handle starting onboarding for first-time users
+   */
   const handleStartOnboarding = () => {
     onStartOnboarding();
     toast({
@@ -99,6 +120,9 @@ export const OnboardingSection = ({
     });
   };
 
+  /**
+   * Handle creating a new order
+   */
   const handleCreateNewOrder = () => {
     if (newOrderTitle.trim()) {
       onStartOnboarding(newOrderTitle.trim());
@@ -111,6 +135,9 @@ export const OnboardingSection = ({
     }
   };
 
+  /**
+   * Get status styling for order badges
+   */
   const getOrderStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       'completed': 'bg-green-100 text-green-800',
@@ -129,6 +156,7 @@ export const OnboardingSection = ({
     return labels[status] || status;
   };
 
+  // Show welcome screen for users with no orders
   if (!hasOrders) {
     return (
       <Card className="mb-8 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200">
@@ -157,70 +185,79 @@ export const OnboardingSection = ({
     );
   }
 
+  // Filter orders that need onboarding display (only 'onboarding' status)
+  const onboardingOrders = allOrders.filter(order => order.status === 'onboarding');
+  
   return (
     <div className="mb-8 space-y-6">
-      {/* Current Order Onboarding */}
-      {currentOrder && (
-        <Card className="border-2 border-blue-200">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">
-                Onboarding - {currentOrder.clientName}
-              </CardTitle>
-              <Badge className={getOrderStatusColor(currentOrder.status)}>
-                {getOrderStatusLabel(currentOrder.status)}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Progress Bar */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">Progression</span>
-                  <span className="text-sm text-gray-600">
-                    {completedSteps}/{steps.length} étapes
-                  </span>
-                </div>
-                <Progress value={progressPercentage} className="h-2" />
-              </div>
+      {/* Display onboarding blocks for each order in onboarding status */}
+      {onboardingOrders.map((order) => {
+        const steps = getStepsForOrder(order.id);
+        const completedSteps = steps.filter(step => step.completed).length;
+        const progressPercentage = calculateProgress(order.id);
 
-              {/* Steps */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {steps.map((step) => {
-                  const Icon = step.icon;
-                  return (
-                    <div 
-                      key={step.id}
-                      className={`flex items-center gap-3 p-4 rounded-lg ${
-                        step.completed ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
-                      }`}
-                    >
-                      <div className={`p-2 rounded-lg ${
-                        step.completed ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-600'
-                      }`}>
-                        {step.completed ? (
-                          <CheckCircle className="w-5 h-5" />
-                        ) : (
-                          <Icon className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium">{step.title}</div>
-                        <div className={`text-sm ${
-                          step.completed ? 'text-green-600' : 'text-gray-600'
+        return (
+          <Card key={order.id} className="border-2 border-blue-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl">
+                  Onboarding - {order.clientName}
+                </CardTitle>
+                <Badge className={getOrderStatusColor(order.status)}>
+                  {getOrderStatusLabel(order.status)}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Progress Bar */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium">Progression</span>
+                    <span className="text-sm text-gray-600">
+                      {completedSteps}/{steps.length} étapes
+                    </span>
+                  </div>
+                  <Progress value={progressPercentage} className="h-2" />
+                </div>
+
+                {/* Onboarding Steps */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {steps.map((step) => {
+                    const Icon = step.icon;
+                    return (
+                      <div 
+                        key={step.id}
+                        className={`flex items-center gap-3 p-4 rounded-lg ${
+                          step.completed ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-lg ${
+                          step.completed ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-600'
                         }`}>
-                          {step.completed ? 'Complété' : 'En attente'}
+                          {step.completed ? (
+                            <CheckCircle className="w-5 h-5" />
+                          ) : (
+                            <Icon className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-medium">{step.title}</div>
+                          <div className={`text-sm ${
+                            step.completed ? 'text-green-600' : 'text-gray-600'
+                          }`}>
+                            {step.completed ? 'Complété' : 'En attente'}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {/* New Order Creation */}
       <div className="flex flex-col sm:flex-row gap-4 items-start">
@@ -261,8 +298,8 @@ export const OnboardingSection = ({
         )}
       </div>
 
-      {/* Existing Orders List */}
-      {allOrders.length > 1 && (
+      {/* List of other orders (non-onboarding) */}
+      {allOrders.filter(order => order.status !== 'onboarding').length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Autres commandes</CardTitle>
@@ -270,7 +307,7 @@ export const OnboardingSection = ({
           <CardContent>
             <div className="space-y-2">
               {allOrders
-                .filter(order => order.id !== currentOrder?.id)
+                .filter(order => order.status !== 'onboarding')
                 .map((order) => (
                   <div 
                     key={order.id}
