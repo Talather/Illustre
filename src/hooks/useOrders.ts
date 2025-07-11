@@ -11,7 +11,7 @@ type OrderUpdate = Database['public']['Tables']['orders']['Update'];
 export const useOrders = () => {
   const { user } = useAuth();
   
-  return useQuery({
+  const query = useQuery({
     queryKey: ['orders', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -28,6 +28,16 @@ export const useOrders = () => {
     },
     enabled: !!user,
   });
+
+  const createOrderMutation = useCreateOrder();
+
+  return {
+    orders: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    createOrder: createOrderMutation.mutateAsync,
+    ...query
+  };
 };
 
 export const useOrderById = (orderId: string) => {

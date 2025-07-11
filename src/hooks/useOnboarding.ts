@@ -5,6 +5,49 @@ import { Database } from '@/integrations/supabase/types';
 
 type OnboardingStep = Database['public']['Tables']['onboarding_steps']['Row'];
 
+export const useOnboarding = () => {
+  const queryClient = useQueryClient();
+
+  const { data: onboardingSteps = [], isLoading } = useQuery({
+    queryKey: ['onboarding-steps'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('onboarding_steps')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const startOnboarding = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data, error } = await supabase
+        .from('onboarding_steps')
+        .insert({
+          order_id: orderId,
+          step: 'call_scheduled',
+          completed: false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding-steps'] });
+    },
+  });
+
+  return {
+    onboardingSteps,
+    startOnboarding: startOnboarding.mutateAsync,
+    isLoading,
+  };
+};
+
 export const useOnboardingSteps = (orderId: string) => {
   return useQuery({
     queryKey: ['onboarding-steps', orderId],

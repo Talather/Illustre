@@ -1,11 +1,5 @@
 
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  roles: string[];
-  status: string;
-}
+import { UserProfile } from "@/types/auth";
 
 interface DashboardProps {
   user: UserProfile;

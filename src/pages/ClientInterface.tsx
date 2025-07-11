@@ -5,19 +5,17 @@ import { OnboardingSection } from "@/components/client/OnboardingSection";
 import { OrdersSection } from "@/components/client/OrdersSection";
 import { useOrders } from "@/hooks/useOrders";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { useCreateRevision } from "@/hooks/useProducts";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  roles: string[];
-  status: string;
-}
+import { UserProfile } from "@/types/auth";
 
 interface ClientInterfaceProps {
   user: UserProfile;
   onLogout: () => void;
+  availableRoles?: string[];
+  currentRole?: string;
+  onRoleChange?: (role: string) => void;
 }
 
 /**
@@ -35,10 +33,17 @@ interface ClientInterfaceProps {
  * - Order creation and management
  * - File access and revision request handling
  */
-const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
-  // Fetch orders and onboarding data
-  const { orders, createOrder, isLoading: ordersLoading } = useOrders();
-  const { onboardingSteps, startOnboarding, isLoading: onboardingLoading } = useOnboarding();
+const ClientInterface = ({ 
+  user, 
+  onLogout, 
+  availableRoles = [], 
+  currentRole = 'client',
+  onRoleChange 
+}: ClientInterfaceProps) => {
+  const { user: authUser } = useAuth();
+  const { orders, isLoading: ordersLoading } = useOrders();
+  const { onboardingSteps, isLoading: onboardingLoading } = useOnboarding();
+  const createRevisionMutation = useCreateRevision();
 
   /**
    * Handle file access requests
@@ -55,39 +60,36 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
   /**
    * Handle revision requests
    */
-  const handleRevisionRequest = (productId: string, description: string) => {
-    console.log('Revision request:', { productId, description });
-    toast({
-      title: "Demande de révision",
-      description: "Votre demande de révision a été envoyée.",
-    });
-  };
+  const handleRevisionRequest = async (productId: string, description: string) => {
+    if (!authUser) return;
 
-  /**
-   * Handle starting onboarding for an order
-   */
-  const handleStartOnboarding = (orderTitle?: string) => {
-    console.log('Starting onboarding for:', orderTitle);
-    toast({
-      title: "Onboarding démarré",
-      description: `Processus d'onboarding démarré${orderTitle ? ` pour ${orderTitle}` : ''}.`,
-    });
+    try {
+      await createRevisionMutation.mutateAsync({
+        product_id: productId,
+        description,
+        requested_by: authUser.id,
+      });
+      
+      toast({
+        title: "Demande de révision envoyée",
+        description: "Votre demande de révision a été envoyée avec succès.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer la demande de révision.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Group orders by status for onboarding section
-  const onboardingOrders = orders.filter(order => order.status === 'onboarding');
+  const clientOrders = orders.filter(order => order.client_id === user.id);
+  const onboardingOrders = clientOrders.filter(order => order.status === 'onboarding');
   const onboardingStepsByOrder = onboardingOrders.reduce((acc, order) => {
     acc[order.id] = onboardingSteps.filter(step => step.order_id === order.id);
     return acc;
   }, {} as Record<string, any[]>);
-
-  // Group orders and products for main section
-  const ordersByClient = orders.reduce((acc, order) => {
-    if (!acc[order.client_id]) {
-      acc[order.client_id] = { order, products: [] };
-    }
-    return acc;
-  }, {} as Record<string, { order: any; products: any[] }>);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -95,6 +97,9 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
         user={user}
         isSubcontracted={false}
         onLogout={onLogout}
+        availableRoles={availableRoles}
+        currentRole={currentRole}
+        onRoleChange={onRoleChange}
       />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -103,17 +108,10 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
           isSubcontracted={false}
         />
 
-        <OnboardingSection 
-          allOrders={onboardingOrders}
-          onboardingStepsByOrder={onboardingStepsByOrder}
-          hasOrders={orders.length > 0}
-          onStartOnboarding={handleStartOnboarding}
-        />
+        <OnboardingSection />
 
         <OrdersSection
-          ordersByClient={ordersByClient}
           onFileAccess={handleFileAccess}
-          onRevisionRequest={handleRevisionRequest}
         />
       </main>
     </div>

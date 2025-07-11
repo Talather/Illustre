@@ -13,10 +13,14 @@ import { AdminStats } from "@/components/admin/AdminStats";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { OrderManagement } from "@/components/admin/OrderManagement";
 import { EmailManagement } from "@/components/admin/EmailManagement";
+import { UserProfile } from "@/types/auth";
 
 interface AdminInterfaceProps {
-  user: Profile;
+  user: UserProfile;
   onLogout: () => void;
+  availableRoles?: string[];
+  currentRole?: string;
+  onRoleChange?: (role: string) => void;
 }
 
 /**
@@ -42,7 +46,7 @@ interface AdminInterfaceProps {
  * - OrderManagement: Order and product management with accordions
  * - EmailManagement: Email automation with recipient selection
  */
-const AdminInterface = ({ user, onLogout }: AdminInterfaceProps) => {
+const AdminInterface = ({ user, onLogout, availableRoles, currentRole, onRoleChange }: AdminInterfaceProps) => {
   // Mock handlers for demonstration - in real app these would call APIs
   const handleUpdateUser = async (userId: string, updates: Partial<Profile>) => {
     console.log('Updating user:', userId, updates);
@@ -98,7 +102,13 @@ const AdminInterface = ({ user, onLogout }: AdminInterfaceProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header Component */}
-      <AdminHeader user={user} onLogout={onLogout} />
+      <AdminHeader 
+        user={user} 
+        onLogout={onLogout}
+        availableRoles={availableRoles}
+        currentRole={currentRole}
+        onRoleChange={onRoleChange}
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

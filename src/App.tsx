@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useRoleSelection } from "@/hooks/useRoleSelection";
+import { RoleSelector } from "@/components/auth/RoleSelector";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import ClientInterface from "./pages/ClientInterface";
@@ -12,20 +14,14 @@ import CloserInterface from "./pages/CloserInterface";
 import CollaboratorInterface from "./pages/CollaboratorInterface";
 import AdminInterface from "./pages/AdminInterface";
 import NotFound from "./pages/NotFound";
+import { UserProfile } from "@/types/auth";
 
 const queryClient = new QueryClient();
 
-// Define the user interface type for components
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  roles: string[];
-  status: string;
-}
-
 const ProtectedRoutes = () => {
   const { user, profile, userRoles, loading } = useAuth();
+  const availableRoles = userRoles.map(r => r.role);
+  const { selectedRole, needsRoleSelection, selectRole, switchRole } = useRoleSelection(availableRoles);
 
   if (loading) {
     return (
@@ -39,15 +35,15 @@ const ProtectedRoutes = () => {
     return <AuthPage />;
   }
 
-  // Auto-redirect based on user roles
-  const getDefaultRoute = () => {
-    const roles = userRoles.map(r => r.role);
-    if (roles.includes('admin')) return '/admin';
-    if (roles.includes('closer')) return '/closer';
-    if (roles.includes('collaborator')) return '/collaborator';
-    if (roles.includes('client')) return '/client';
-    return '/client'; // Default fallback
-  };
+  // Show role selector if user has multiple roles and hasn't selected one
+  if (needsRoleSelection) {
+    return (
+      <RoleSelector
+        availableRoles={availableRoles}
+        onRoleSelect={selectRole}
+      />
+    );
+  }
 
   const handleLogout = () => {
     // This will be handled by the auth context
@@ -59,17 +55,51 @@ const ProtectedRoutes = () => {
     name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email,
     email: profile.email,
     roles: userRoles.map(r => r.role),
-    status: 'active' // Default status
+    status: 'active' as const
   };
 
   return (
     <Routes>
-      <Route path="/client" element={<ClientInterface user={userProfile} onLogout={handleLogout} />} />
-      <Route path="/closer" element={<CloserInterface user={userProfile} onLogout={handleLogout} />} />
-      <Route path="/collaborator" element={<CollaboratorInterface user={userProfile} onLogout={handleLogout} />} />
-      <Route path="/admin" element={<AdminInterface user={userProfile} onLogout={handleLogout} />} />
+      <Route path="/client" element={
+        <ClientInterface 
+          user={userProfile} 
+          onLogout={handleLogout}
+          availableRoles={availableRoles}
+          currentRole={selectedRole || 'client'}
+          onRoleChange={switchRole}
+        />
+      } />
+      <Route path="/closer" element={
+        <CloserInterface 
+          user={userProfile} 
+          onLogout={handleLogout}
+          availableRoles={availableRoles}
+          currentRole={selectedRole || 'closer'}
+          onRoleChange={switchRole}
+        />
+      } />
+      <Route path="/collaborator" element={
+        <CollaboratorInterface 
+          user={userProfile} 
+          onLogout={handleLogout}
+          availableRoles={availableRoles}
+          currentRole={selectedRole || 'collaborator'}
+          onRoleChange={switchRole}
+        />
+      } />
+      <Route path="/admin" element={
+        <AdminInterface 
+          user={userProfile} 
+          onLogout={handleLogout}
+          availableRoles={availableRoles}
+          currentRole={selectedRole || 'admin'}
+          onRoleChange={switchRole}
+        />
+      } />
       <Route path="/dashboard" element={<Dashboard user={userProfile} onLogout={handleLogout} />} />
-      <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+      <Route path="/" element={
+        <Navigate to={selectedRole ? `/${selectedRole}` : '/client'} replace />
+      } />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
