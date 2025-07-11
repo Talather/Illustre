@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { RoleSwitcher } from "@/components/ui/RoleSwitcher";
 
 interface ClientHeaderProps {
   /** User profile information */
@@ -21,6 +22,12 @@ interface ClientHeaderProps {
   finalClientName?: string;
   /** Callback when user logs out */
   onLogout: () => void;
+  /** Available roles for role switching */
+  availableRoles?: string[];
+  /** Current selected role */
+  currentRole?: string;
+  /** Callback to change role */
+  onRoleChange?: (role: string) => void;
 }
 
 /**
@@ -30,6 +37,7 @@ interface ClientHeaderProps {
  * - Navigation back to dashboard
  * - Branding display (custom or default)
  * - User badge with subcontract indicator
+ * - Role switcher for multi-role users
  * - Logout functionality
  */
 export const ClientHeader = ({
@@ -37,7 +45,10 @@ export const ClientHeader = ({
   isSubcontracted,
   customBranding,
   finalClientName,
-  onLogout
+  onLogout,
+  availableRoles = [],
+  currentRole = 'client',
+  onRoleChange
 }: ClientHeaderProps) => {
   const navigate = useNavigate();
   const brandColor = customBranding?.primaryColor || 'hsl(var(--primary))';
@@ -73,6 +84,13 @@ export const ClientHeader = ({
           </div>
           
           <div className="flex items-center gap-4">
+            {availableRoles.length > 1 && onRoleChange && (
+              <RoleSwitcher
+                currentRole={currentRole}
+                availableRoles={availableRoles}
+                onRoleChange={onRoleChange}
+              />
+            )}
             <Badge variant="outline" className="bg-blue-100 text-blue-800">
               Client {isSubcontracted && "(Sous-traitance)"}
             </Badge>

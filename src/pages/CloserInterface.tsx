@@ -23,10 +23,15 @@ import {
   ExternalLink
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { RoleSwitcher } from "@/components/ui/RoleSwitcher";
+import { UserProfile } from "@/types/auth";
 
 interface CloserInterfaceProps {
-  user: Profile;
+  user: UserProfile;
   onLogout: () => void;
+  availableRoles?: string[];
+  currentRole?: string;
+  onRoleChange?: (role: string) => void;
 }
 
 interface CustomOption {
@@ -35,7 +40,7 @@ interface CustomOption {
   stripeUrl: string;
 }
 
-const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
+const CloserInterface = ({ user, onLogout, availableRoles = [], currentRole = 'closer', onRoleChange }: CloserInterfaceProps) => {
   const navigate = useNavigate();
   const [newClientData, setNewClientData] = useState({
     name: "",
@@ -188,6 +193,13 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
             </div>
             
             <div className="flex items-center gap-4">
+              {availableRoles.length > 1 && onRoleChange && (
+                <RoleSwitcher
+                  currentRole={currentRole}
+                  availableRoles={availableRoles}
+                  onRoleChange={onRoleChange}
+                />
+              )}
               <Badge variant="outline" className="bg-green-100 text-green-800">
                 Closer
               </Badge>
