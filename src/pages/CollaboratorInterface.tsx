@@ -14,7 +14,6 @@ import {
   Filter,
   Upload,
   Send,
-  FileText,
   Clock,
   Video,
   ExternalLink,
@@ -22,7 +21,6 @@ import {
   AlertCircle,
   Edit,
   MessageSquare,
-  History
 } from "lucide-react";
 
 interface CollaboratorInterfaceProps {
@@ -155,14 +153,6 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
       description: "Redirection vers Fillout...",
     });
     window.open(formLink, '_blank');
-  };
-
-  const handleViewPreparation = (link: string) => {
-    toast({
-      title: "Ouverture de la préparation",
-      description: "Redirection vers Notion...",
-    });
-    window.open(link, '_blank');
   };
 
   const getUrgencyLevel = (date: string) => {
@@ -447,26 +437,6 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
                                   <Badge className={getStatusColor(product.status)}>
                                     {getStatusLabel(product.status)}
                                   </Badge>
-
-                                   <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleViewPreparation(product.preparationLink)}
-                                    >
-                                      <FileText className="w-4 h-4 mr-1" />
-                                      Préproduction
-                                    </Button>
-                                    
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => handleDepositDeliverable(product.id)}
-                                    >
-                                      <Upload className="w-4 h-4 mr-1" />
-                                      Déposer livrable
-                                    </Button>
-                                  </div>
                                 </div>
                               </div>
 
@@ -491,22 +461,6 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
                                     Déposer le livrable
                                   </Button>
                                 )}
-
-                                <Button
-                                  variant="outline"
-                                  onClick={() => window.open(product.deliverableLink, '_blank')}
-                                >
-                                  <ExternalLink className="w-4 h-4 mr-2" />
-                                  Frame.io
-                                </Button>
-                                
-                                <Button
-                                  variant="outline"
-                                  onClick={() => window.open(product.fileDepositLink, '_blank')}
-                                >
-                                  <ExternalLink className="w-4 h-4 mr-2" />
-                                  Dropbox
-                                </Button>
                               </div>
                             </CardContent>
                           </Card>
