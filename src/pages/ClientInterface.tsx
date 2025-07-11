@@ -1,56 +1,42 @@
 
-import { useState } from "react";
 import { ClientHeader } from "@/components/client/ClientHeader";
 import { WelcomeSection } from "@/components/client/WelcomeSection";
 import { OnboardingSection } from "@/components/client/OnboardingSection";
 import { OrdersSection } from "@/components/client/OrdersSection";
-import { 
-  Profile, 
-  getOrdersByClientId, 
-  getProductsByOrderId, 
-  getOnboardingStepsByOrderId,
-  mockOrders 
-} from "@/lib/mockData";
+import { useClientOrderData } from "@/hooks/useOrderData";
+import { revisionService } from "@/services/supabaseService";
 import { toast } from "@/hooks/use-toast";
 
+interface TestAccount {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  roles: string[];
+}
+
 interface ClientInterfaceProps {
-  user: Profile;
+  user: TestAccount;
   onLogout: () => void;
 }
 
 /**
  * ClientInterface - Main interface for client users
- * 
- * Architecture:
- * - ClientHeader: Navigation, branding, and user controls
- * - WelcomeSection: Personalized welcome message
- * - OnboardingSection: Onboarding progress for active orders
- * - OrdersSection: Detailed order and product management
- * 
- * Key Features:
- * - Subcontracted client support with custom branding
- * - Multiple onboarding blocks (one per order in onboarding status)
- * - Order creation and management
- * - File access and revision request handling
+ * Now integrated with Supabase for real data management
  */
 const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
-  // Get user's orders sorted by creation date (newest first)
-  const userOrders = getOrdersByClientId(user.id).sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-  
+  const { orders, loading } = useClientOrderData(user.id);
+
   // Get current order (most recent)
-  const currentOrder = userOrders[0];
+  const currentOrder = orders[0];
   
   // Check if this is a subcontracted client
-  const orderData = mockOrders.find(o => o.id === currentOrder?.id);
-  const isSubcontracted = orderData?.isSubcontracted || false;
-  const customBranding = orderData?.customBranding;
+  const isSubcontracted = currentOrder?.is_subcontracted || false;
+  const customBranding = currentOrder?.custom_branding as any;
   
   // Group onboarding steps by order ID for efficient lookup
-  const onboardingStepsByOrder = userOrders.reduce((acc, order) => {
-    const steps = getOnboardingStepsByOrderId(order.id);
-    acc[order.id] = steps.map(step => ({
+  const onboardingStepsByOrder = orders.reduce((acc, order) => {
+    acc[order.id] = order.onboardingSteps.map(step => ({
       id: step.step,
       title: step.step === 'contract_signed' ? 'Signature du contrat' :
              step.step === 'form_completed' ? 'Formulaire d\'Onboarding' :
@@ -62,12 +48,18 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
     return acc;
   }, {} as Record<string, any[]>);
   
-  // Group orders with their products (excluding next action data)
-  const ordersByClient = userOrders.reduce((acc, order) => {
-    const products = getProductsByOrderId(order.id).map(product => ({
+  // Group orders with their products
+  const ordersByClient = orders.reduce((acc, order) => {
+    const products = order.products.map(product => ({
       ...product,
-      // Remove nextActionDate from products to eliminate "next action" mentions
-      nextActionDate: undefined
+      // Map database fields to expected interface
+      nextActionDate: undefined, // Removed as requested
+      revisions: product.revisions?.map(rev => ({
+        id: rev.id,
+        requestedAt: rev.requested_at || '',
+        description: rev.description,
+        status: rev.status as 'pending' | 'in_progress' | 'completed'
+      })) || []
     }));
     acc[order.id] = { order, products };
     return acc;
@@ -75,7 +67,6 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
 
   /**
    * Handle file access requests
-   * Opens links in new tabs and provides user feedback
    */
   const handleFileAccess = (link: string, type: string) => {
     toast({
@@ -87,19 +78,26 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
 
   /**
    * Handle revision requests from clients
-   * Logs request and provides user feedback
    */
-  const handleRevisionRequest = (productId: string, description: string) => {
-    toast({
-      title: "Demande de révision envoyée",
-      description: "Votre demande a été transmise à l'équipe de production.",
-    });
-    console.log(`Revision request for product ${productId}: ${description}`);
+  const handleRevisionRequest = async (productId: string, description: string) => {
+    const revision = await revisionService.createRevision(productId, description);
+    
+    if (revision) {
+      toast({
+        title: "Demande de révision envoyée",
+        description: "Votre demande a été transmise à l'équipe de production.",
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer la demande de révision.",
+        variant: "destructive"
+      });
+    }
   };
 
   /**
    * Handle onboarding initiation
-   * Creates new orders and provides feedback
    */
   const handleStartOnboarding = (orderTitle?: string) => {
     if (orderTitle) {
@@ -117,13 +115,21 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-gray-600 text-xl font-medium">Chargement des données...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <ClientHeader
         user={user}
         isSubcontracted={isSubcontracted}
         customBranding={customBranding}
-        finalClientName={orderData?.finalClientName}
+        finalClientName={currentOrder?.final_client_name}
         onLogout={onLogout}
       />
 
@@ -131,13 +137,13 @@ const ClientInterface = ({ user, onLogout }: ClientInterfaceProps) => {
         <WelcomeSection
           userName={user.name}
           isSubcontracted={isSubcontracted}
-          finalClientName={orderData?.finalClientName}
+          finalClientName={currentOrder?.final_client_name}
         />
 
         <OnboardingSection
-          allOrders={userOrders}
+          allOrders={orders}
           onboardingStepsByOrder={onboardingStepsByOrder}
-          hasOrders={userOrders.length > 0}
+          hasOrders={orders.length > 0}
           onStartOnboarding={handleStartOnboarding}
         />
 

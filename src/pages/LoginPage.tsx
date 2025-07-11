@@ -1,73 +1,25 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { mockAuth, mockProfiles, Profile } from "@/lib/mockData";
-import { toast } from "@/hooks/use-toast";
-import { Eye, EyeOff, LogIn, Users } from "lucide-react";
 
-interface LoginPageProps {
-  onLogin: (user: Profile) => void;
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { User } from "lucide-react";
+
+interface TestAccount {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  roles: string[];
 }
 
-const LoginPage = ({ onLogin }: LoginPageProps) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+interface LoginPageProps {
+  onLogin: (user: TestAccount) => void;
+  testAccounts: TestAccount[];
+}
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const success = mockAuth.login(email);
-    if (success) {
-      const user = mockAuth.getCurrentUser();
-      if (user) {
-        toast({
-          title: "Connexion réussie",
-          description: `Bienvenue ${user.name} !`,
-        });
-        onLogin(user);
-        // Auto-redirect based on user roles
-        const defaultRoute = user.roles.includes('admin') ? '/admin' :
-                            user.roles.includes('closer') ? '/closer' :
-                            user.roles.includes('collaborator') ? '/collaborator' :
-                            '/client';
-        navigate(defaultRoute);
-      }
-    } else {
-      toast({
-        title: "Erreur de connexion",
-        description: "Email non reconnu. Utilisez un des comptes de test ci-dessous.",
-        variant: "destructive",
-      });
-    }
-    
-    setLoading(false);
-  };
-
-  const handleQuickLogin = (user: Profile) => {
-    mockAuth.currentUser = user;
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    toast({
-      title: "Connexion rapide",
-      description: `Connecté en tant que ${user.name}`,
-    });
-    onLogin(user);
-    // Auto-redirect based on user roles
-    const defaultRoute = user.roles.includes('admin') ? '/admin' :
-                        user.roles.includes('closer') ? '/closer' :
-                        user.roles.includes('collaborator') ? '/collaborator' :
-                        '/client';
-    navigate(defaultRoute);
-  };
+const LoginPage = ({ onLogin, testAccounts }: LoginPageProps) => {
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
@@ -79,143 +31,93 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     return colors[role] || "bg-gray-100 text-gray-800";
   };
 
-  const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = {
-      lead: "Lead",
-      client: "Client",
-      closer: "Closer",
-      collaborator: "Collaborateur",
-      admin: "Admin"
-    };
-    return labels[role] || role;
+  const handleLogin = (account: TestAccount) => {
+    setSelectedAccount(account.id);
+    setTimeout(() => {
+      onLogin(account);
+    }, 500);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-turquoise flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8">
-        {/* Login Form */}
-        <Card className="w-full max-w-md mx-auto shadow-2xl">
-          <CardHeader className="text-center">
-            <div className="text-4xl font-avigea text-gradient-turquoise mb-4">
-              illustre!
-            </div>
-            <CardTitle className="text-2xl font-poppins">Connexion</CardTitle>
-            <CardDescription>
-              Accédez à votre espace de production audiovisuelle
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="votre.email@exemple.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">
-                  Mot de passe
-                </label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <div className="w-full max-w-2xl space-y-6">
+        <div className="text-center space-y-4">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Interface de Gestion Vidéo
+          </h1>
+          <p className="text-gray-600">
+            Choisissez un compte de test pour accéder à l'interface
+          </p>
+        </div>
 
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-turquoise hover:opacity-90 transition-opacity"
-                disabled={loading}
-              >
-                {loading ? (
-                  "Connexion..."
-                ) : (
-                  <>
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Se connecter
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Mock Accounts */}
-        <Card className="shadow-2xl">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Comptes de test
-            </CardTitle>
-            <CardDescription>
-              Cliquez sur un profil pour vous connecter rapidement et tester l'interface correspondante
+            <CardTitle className="text-center">Comptes de Test</CardTitle>
+            <CardDescription className="text-center">
+              Sélectionnez un profil pour explorer les différentes interfaces
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockProfiles.map((user) => (
+            <div className="grid gap-4">
+              {testAccounts.map((account) => (
                 <div
-                  key={user.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleQuickLogin(user)}
+                  key={account.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                    selectedAccount === account.id 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleLogin(account)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl">{user.avatar}</div>
-                    <div>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          {account.name}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {account.email}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {account.company}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {account.roles.map((role) => (
+                        <Badge 
+                          key={role}
+                          variant="outline"
+                          className={getRoleBadgeColor(role)}
+                        >
+                          {role}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {user.roles.map((role) => (
-                      <Badge 
-                        key={role}
-                        variant="outline"
-                        className={getRoleBadgeColor(role)}
-                      >
-                        {getRoleLabel(role)}
-                      </Badge>
-                    ))}
-                  </div>
+                  
+                  {selectedAccount === account.id && (
+                    <div className="mt-3 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-sm text-blue-600">
+                        Connexion...
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">💡 Guide des rôles</h4>
-              <div className="space-y-1 text-sm text-blue-800">
-                <div><strong>Lead :</strong> Processus d'onboarding uniquement</div>
-                <div><strong>Client :</strong> Dashboard projet + fichiers + livrables</div>
-                <div><strong>Closer :</strong> Création comptes, commandes, produits</div>
-                <div><strong>Collaborateur :</strong> Production et suivi projets</div>
-                <div><strong>Admin :</strong> Accès complet à toutes les interfaces</div>
-              </div>
-            </div>
           </CardContent>
         </Card>
+
+        <div className="text-center">
+          <p className="text-sm text-gray-500">
+            Mode développement - Comptes de test uniquement
+          </p>
+        </div>
       </div>
     </div>
   );
