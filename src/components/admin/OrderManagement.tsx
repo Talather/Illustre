@@ -39,7 +39,10 @@ export const OrderManagement = ({
 }: OrderManagementProps) => {
   const [editingOrder, setEditingOrder] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
-  const [orderForm, setOrderForm] = useState({ clientName: '', status: '' });
+  const [orderForm, setOrderForm] = useState<{ clientName: string; status: Order['status'] }>({ 
+    clientName: '', 
+    status: 'onboarding' 
+  });
   const [productForm, setProductForm] = useState({ title: '', responsible: '', instructions: '' });
 
   const getStatusColor = (status: string) => {
@@ -130,7 +133,7 @@ export const OrderManagement = ({
   const handleEditCancel = () => {
     setEditingOrder(null);
     setEditingProduct(null);
-    setOrderForm({ clientName: '', status: '' });
+    setOrderForm({ clientName: '', status: 'onboarding' });
     setProductForm({ title: '', responsible: '', instructions: '' });
   };
 
@@ -162,7 +165,7 @@ export const OrderManagement = ({
                             />
                             <Select
                               value={orderForm.status}
-                              onValueChange={(value) => setOrderForm(prev => ({ ...prev, status: value }))}
+                              onValueChange={(value: Order['status']) => setOrderForm(prev => ({ ...prev, status: value }))}
                             >
                               <SelectTrigger className="w-40">
                                 <SelectValue />
@@ -256,7 +259,7 @@ export const OrderManagement = ({
                               </Badge>
                               <Select
                                 value={product.status}
-                                onValueChange={(value) => onUpdateProduct(product.id, { status: value as any })}
+                                onValueChange={(value: OrderProduct['status']) => onUpdateProduct(product.id, { status: value })}
                               >
                                 <SelectTrigger className="w-40">
                                   <SelectValue />
