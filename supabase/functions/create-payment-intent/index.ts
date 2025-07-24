@@ -9,9 +9,7 @@
 // import Stripe from 'stripe';
 
 // // Initialize Stripe with the secret key
-// const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "sk_test_51REW3y02ZVUur5kwofqqCwM85ozam7hyyYrn0v9hfix3BFjmlVZsH4KDVJ3eVtGgTRNGIzeXJ9xi8mWpVOaNbdzF00iO4mW1Z1", {
-//   apiVersion: '2023-10-16', // Use the latest API version
-// });
+
 
 // console.log(`Function "create-checkout-session" up and running!`);
 
