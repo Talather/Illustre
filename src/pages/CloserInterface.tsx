@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Profile, mockProfiles, mockOrders, productTemplates, ProductTemplate } from "@/lib/mockData";
 import { toast } from "@/hooks/use-toast";
+import logo from "./../assets/logo.png";
+
 import { 
   LogOut, 
   ArrowLeft, 
@@ -619,9 +621,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <div className="text-2xl font-avigea text-gradient-turquoise">
-                illustre!
-              </div>
+            <img src={logo} className="w-36"/>
               <div className="hidden sm:block text-gray-300">|</div>
               <div className="hidden sm:block text-gray-600">
                 Interface Closer

@@ -63,11 +63,11 @@ const generatePdfAndSaveLink = async (order: DatabaseOrder) => {
   const payload = {
     nom_client: order.client_name,
     adresse_client: order.client_email,
-    nombre_videos: order.products.length,
+    nombre_videos: order.products[0].product_name,
     prix: order.total_price,
     price: order.total_price,
     price_ttc: order.total_price,
-    format: order.products[0].format,
+    format: order.products[0].product_type,
     date_signature: new Date().toISOString().split('T')[0]
   }
 

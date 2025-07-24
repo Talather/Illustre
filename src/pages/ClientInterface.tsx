@@ -4,7 +4,7 @@ import { WelcomeSection } from "@/components/client/WelcomeSection";
 import { OnboardingSection } from "@/components/client/OnboardingSection";
 import { OrdersSection } from "@/components/client/OrdersSection";
 import { 
-  Profile,
+Profile,
   getOrdersByClientId, 
   getProductsByOrderId, 
   getOnboardingStepsByOrderId,
