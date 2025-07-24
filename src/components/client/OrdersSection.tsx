@@ -3,8 +3,17 @@ import { OrderAccordion } from "./OrderAccordion";
 
 interface Order {
   id: string;
-  clientName: string;
+  client_id: string;
+  closer_id?: string;
+  order_name: string;
   status: string;
+  products: any[];
+  custom_options: any[];
+  total_price: number;
+  created_at: string;
+  updated_at: string;
+  client_name?: string;
+  client_email?: string;
 }
 
 interface Product {

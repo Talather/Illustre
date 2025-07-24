@@ -21,9 +21,11 @@ interface Product {
   status: string;
   deliverableLink: string;
   preparationLink: string;
-  nextActionDate?: string; // Made optional
+  nextActionDate?: string;
   responsible: string;
   instructions: string;
+  product_type: string;
+  product_name: string;
   revisions?: Array<{
     id: string;
     requestedAt: string;
@@ -90,7 +92,7 @@ export const ProductCard = ({
     }
   };
 
-  const isDelivered = product.status === 'delivered';
+  const isDelivered = product.status === 'delivered' || product.status === 'revision_requested';
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -100,7 +102,7 @@ export const ProductCard = ({
             <CardTitle className="text-lg">{product.title}</CardTitle>
             <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
               <Video className="w-4 h-4" />
-              Format: {product.format} • Responsable: {product.responsible}
+              Format: {product.format || product.product_type} • Responsable: {product.responsible}
             </div>
           </div>
           <Badge className={getStatusColor(product.status)}>
@@ -114,7 +116,7 @@ export const ProductCard = ({
           {/* Instructions */}
           <div className="p-3 bg-gray-50 rounded-lg">
             <h4 className="font-medium mb-2 text-sm">Instructions du projet</h4>
-            <p className="text-sm text-gray-600">{product.instructions}</p>
+            <p className="text-sm text-gray-600">{product.product_name}</p>
           </div>
 
           {/* Action Buttons */}
@@ -133,7 +135,7 @@ export const ProductCard = ({
             )}
             
             {/* Preproduction (renamed from preparation) */}
-            <Button 
+            {/* <Button 
               variant="outline"
               onClick={() => onFileAccess(product.preparationLink, "à la préproduction")}
               className="flex items-center gap-2"
@@ -141,7 +143,7 @@ export const ProductCard = ({
               <Folder className="w-4 h-4" />
               Préproduction
               <ExternalLink className="w-4 h-4" />
-            </Button>
+            </Button> */}
           </div>
 
           {/* Revision Request Section - only show if delivered */}

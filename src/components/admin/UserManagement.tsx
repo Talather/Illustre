@@ -8,12 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Profile } from "@/lib/mockData";
 import { toast } from "@/hooks/use-toast";
-import { Edit, Save, X } from "lucide-react";
+// import { UserRegistration } from "@/components/auth/UserRegistration";
+import { Edit, Save, X, UserPlus } from "lucide-react";
 
 interface UserManagementProps {
   users: Profile[];
   onUpdateUser: (userId: string, updates: Partial<Profile>) => void;
   onUpdateUserRoles: (userId: string, newRoles: string[]) => void;
+  onCreateUser?: () => void;
 }
 
 /**
@@ -31,10 +33,12 @@ interface UserManagementProps {
 export const UserManagement = ({ 
   users, 
   onUpdateUser, 
-  onUpdateUserRoles 
+  onUpdateUserRoles,
+  onCreateUser 
 }: UserManagementProps) => {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', email: '' });
+  const [showCreateUser, setShowCreateUser] = useState(false);
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
@@ -88,10 +92,38 @@ export const UserManagement = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Gestion des utilisateurs</CardTitle>
-        <CardDescription>
-          Modifiez les informations personnelles et les rôles des utilisateurs
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Gestion des utilisateurs</CardTitle>
+            <CardDescription>
+              Modifiez les informations personnelles et les rôles des utilisateurs
+            </CardDescription>
+          </div>
+          <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Créer un utilisateur
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
+                <DialogDescription>
+                  Créez un nouveau compte utilisateur avec le rôle client
+                </DialogDescription>
+              </DialogHeader>
+              {/* <UserRegistration 
+                mode="admin-create"
+                onSuccess={() => {
+                  setShowCreateUser(false);
+                  onCreateUser?.();
+                }}
+                onCancel={() => setShowCreateUser(false)}
+              /> */}
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">

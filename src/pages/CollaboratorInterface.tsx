@@ -52,9 +52,7 @@ const CollaboratorInterface = ({ user, onLogout }: CollaboratorInterfaceProps) =
    * Get all products assigned to the current collaborator
    * Based on the 'responsible' field matching the user's name
    */
-  const assignedProducts = mockOrderProducts.filter(product => 
-    product.responsible === user.name
-  );
+  const assignedProducts = mockOrderProducts;
 
   /**
    * Group assigned products by their parent orders

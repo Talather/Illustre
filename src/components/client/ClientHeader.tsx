@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import logo from "./../../assets/logo.png";
 
 interface ClientHeaderProps {
   /** User profile information */
@@ -47,10 +48,10 @@ export const ClientHeader = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+            {/* <Button variant="ghost" onClick={() => navigate('/')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
-            </Button>
+            </Button> */}
             
             {isSubcontracted && customBranding ? (
               <div className="flex items-center gap-2">
@@ -61,9 +62,7 @@ export const ClientHeader = ({
               </div>
             ) : (
               <div className="flex items-center gap-4">
-                <div className="text-2xl font-avigea text-gradient-turquoise">
-                  illustre!
-                </div>
+                <img src={logo} className="w-36"/>
                 <div className="hidden sm:block text-gray-300">|</div>
                 <div className="hidden sm:block text-gray-600">
                   Espace Client

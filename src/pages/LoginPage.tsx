@@ -1,123 +1,174 @@
-
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { User } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/hooks/use-toast";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
-interface TestAccount {
-  id: string;
-  name: string;
-  email: string;
-  company: string;
-  roles: string[];
-}
+const LoginPage = () => {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { signIn, getDefaultRoute , needsPasswordReset } = useAuthContext();
 
-interface LoginPageProps {
-  onLogin: (user: TestAccount) => void;
-  testAccounts: TestAccount[];
-}
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs",
+        variant: "destructive",
+      });
+      return;
+    }
 
-const LoginPage = ({ onLogin, testAccounts }: LoginPageProps) => {
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
-
-  const getRoleBadgeColor = (role: string) => {
-    const colors: Record<string, string> = {
-      client: "bg-blue-100 text-blue-800",
-      closer: "bg-green-100 text-green-800",
-      collaborator: "bg-purple-100 text-purple-800",
-      admin: "bg-red-100 text-red-800"
-    };
-    return colors[role] || "bg-gray-100 text-gray-800";
+    setLoading(true);
+    
+    try {
+      const result = await signIn(email, password);
+      
+      if (result.success) {
+        toast({
+          title: "Connexion réussie",
+          description: "Vous êtes maintenant connecté",
+        });
+        if(needsPasswordReset){
+          navigate("/reset");
+        }else{
+          navigate(getDefaultRoute());
+        }
+      } else {
+        toast({
+          title: "Erreur de connexion",
+          description: result.error || "Email ou mot de passe incorrect",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive",
+      });
+    }
+    
+    setLoading(false);
   };
 
-  const handleLogin = (account: TestAccount) => {
-    setSelectedAccount(account.id);
-    setTimeout(() => {
-      onLogin(account);
-    }, 500);
-  };
+
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-      <div className="w-full max-w-2xl space-y-6">
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Interface de Gestion Vidéo
-          </h1>
-          <p className="text-gray-600">
-            Choisissez un compte de test pour accéder à l'interface
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center">Comptes de Test</CardTitle>
-            <CardDescription className="text-center">
-              Sélectionnez un profil pour explorer les différentes interfaces
+    <div className="min-h-screen bg-gradient-turquoise flex items-center justify-center p-4">
+      <div className="w-full max-w-6xl ">
+        {/* Login Form */}
+        <Card className="w-full max-w-md mx-auto shadow-2xl">
+          <CardHeader className="text-center">
+            <div className="text-4xl font-avigea text-gradient-turquoise mb-4">
+              illustre!
+            </div>
+            <CardTitle className="text-2xl font-poppins">Connexion</CardTitle>
+            <CardDescription>
+              Accédez à votre espace de production audiovisuelle
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4">
-              {testAccounts.map((account) => (
-                <div
-                  key={account.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                    selectedAccount === account.id 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleLogin(account)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-gray-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {account.name}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          {account.email}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {account.company}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {account.roles.map((role) => (
-                        <Badge 
-                          key={role}
-                          variant="outline"
-                          className={getRoleBadgeColor(role)}
-                        >
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {selectedAccount === account.id && (
-                    <div className="mt-3 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                      <span className="ml-2 text-sm text-blue-600">
-                        Connexion...
-                      </span>
-                    </div>
-                  )}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="votre.email@exemple.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium">
+                  Mot de passe
+                </label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
                 </div>
-              ))}
-            </div>
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full bg-gradient-turquoise hover:opacity-90 transition-opacity"
+                disabled={loading}
+              >
+                {loading ? (
+                  "Connexion..."
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Se connecter
+                  </>
+                )}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 
-        <div className="text-center">
-          <p className="text-sm text-gray-500">
-            Mode développement - Comptes de test uniquement
-          </p>
-        </div>
+        {/* Information Panel */}
+        {/* <Card className="shadow-2xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Authentification Supabase
+            </CardTitle>
+            <CardDescription>
+              Connectez-vous avec vos identifiants Supabase
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">💡 Guide des rôles</h4>
+                <div className="space-y-1 text-sm text-blue-800">
+                  <div><strong>Client :</strong> Dashboard projet + fichiers + livrables</div>
+                  <div><strong>Closer :</strong> Création comptes, commandes, produits</div>
+                  <div><strong>Collaborateur :</strong> Production et suivi projets</div>
+                  <div><strong>Admin :</strong> Accès complet à toutes les interfaces</div>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2">🔐 Sécurité</h4>
+                <div className="space-y-1 text-sm text-green-800">
+                  <div>• Authentification sécurisée via Supabase</div>
+                  <div>• Changement de mot de passe obligatoire pour les nouveaux clients</div>
+                  <div>• Accès basé sur les rôles utilisateur</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card> */}
       </div>
     </div>
   );

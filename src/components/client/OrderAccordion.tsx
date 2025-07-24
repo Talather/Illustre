@@ -26,8 +26,17 @@ interface Product {
 
 interface Order {
   id: string;
-  clientName: string;
+  client_id: string;
+  closer_id?: string;
+  order_name: string;
   status: string;
+  products: any[];
+  custom_options: any[];
+  total_price: number;
+  created_at: string;
+  updated_at: string;
+  client_name?: string;
+  client_email?: string;
 }
 
 interface OrderAccordionProps {
@@ -74,17 +83,17 @@ export const OrderAccordion = ({
 
   return (
     <Accordion type="multiple" className="space-y-4">
-      {Object.entries(ordersByClient).map(([orderId, { order, products }]) => (
-        <AccordionItem key={orderId} value={orderId}>
+      {Object.entries(ordersByClient).map(([orderId, { order, products }],index) => (
+        <AccordionItem key={index} value={orderId}>
           <Card>
             <AccordionTrigger className="px-6 py-4 hover:no-underline">
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-4">
                   <Calendar className="w-5 h-5 text-blue-600" />
                   <div className="text-left">
-                    <h3 className="font-semibold text-lg">{order.clientName}</h3>
+                    <h3 className="font-semibold text-lg">{order.client_name}</h3>
                     <p className="text-sm text-gray-600">
-                      Commande #{order.id} • {products.length} produit(s)
+                      Commande #{order.order_name} • {order.products.length} produit(s) • {order.custom_options.length} custom option(s)
                     </p>
                   </div>
                 </div>
@@ -98,7 +107,7 @@ export const OrderAccordion = ({
             
             <AccordionContent>
               <div className="px-6 pb-6 space-y-4">
-                {products.map((product) => (
+                {order.products.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
