@@ -1,51 +1,58 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { mockAuth, mockProfiles, Profile } from "@/lib/mockData";
 import { toast } from "@/hooks/use-toast";
-import { Eye, EyeOff, LogIn, Users } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
-interface LoginPageProps {
-  onLogin: (user: Profile) => void;
-}
-
-const LoginPage = ({ onLogin }: LoginPageProps) => {
+const LoginPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const { signIn, getDefaultRoute , needsPasswordReset } = useAuthContext();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const success = mockAuth.login(email);
-    if (success) {
-      const user = mockAuth.getCurrentUser();
-      if (user) {
+    try {
+      const result = await signIn(email, password);
+      
+      if (result.success) {
         toast({
           title: "Connexion réussie",
-          description: `Bienvenue ${user.name} !`,
+          description: "Vous êtes maintenant connecté",
         });
-        onLogin(user);
-        // Auto-redirect based on user roles
-        const defaultRoute = user.roles.includes('admin') ? '/admin' :
-                            user.roles.includes('closer') ? '/closer' :
-                            user.roles.includes('collaborator') ? '/collaborator' :
-                            '/client';
-        navigate(defaultRoute);
+        if(needsPasswordReset){
+          navigate("/reset");
+        }else{
+          navigate(getDefaultRoute());
+        }
+      } else {
+        toast({
+          title: "Erreur de connexion",
+          description: result.error || "Email ou mot de passe incorrect",
+          variant: "destructive",
+        });
       }
-    } else {
+    } catch (error) {
       toast({
-        title: "Erreur de connexion",
-        description: "Email non reconnu. Utilisez un des comptes de test ci-dessous.",
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
         variant: "destructive",
       });
     }
@@ -53,46 +60,11 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     setLoading(false);
   };
 
-  const handleQuickLogin = (user: Profile) => {
-    mockAuth.currentUser = user;
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    toast({
-      title: "Connexion rapide",
-      description: `Connecté en tant que ${user.name}`,
-    });
-    onLogin(user);
-    // Auto-redirect based on user roles
-    const defaultRoute = user.roles.includes('admin') ? '/admin' :
-                        user.roles.includes('closer') ? '/closer' :
-                        user.roles.includes('collaborator') ? '/collaborator' :
-                        '/client';
-    navigate(defaultRoute);
-  };
 
-  const getRoleBadgeColor = (role: string) => {
-    const colors: Record<string, string> = {
-      client: "bg-blue-100 text-blue-800",
-      closer: "bg-green-100 text-green-800",
-      collaborator: "bg-purple-100 text-purple-800",
-      admin: "bg-red-100 text-red-800"
-    };
-    return colors[role] || "bg-gray-100 text-gray-800";
-  };
-
-  const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = {
-      lead: "Lead",
-      client: "Client",
-      closer: "Closer",
-      collaborator: "Collaborateur",
-      admin: "Admin"
-    };
-    return labels[role] || role;
-  };
 
   return (
     <div className="min-h-screen bg-gradient-turquoise flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8">
+      <div className="w-full max-w-6xl ">
         {/* Login Form */}
         <Card className="w-full max-w-md mx-auto shadow-2xl">
           <CardHeader className="text-center">
@@ -163,59 +135,40 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           </CardContent>
         </Card>
 
-        {/* Mock Accounts */}
-        <Card className="shadow-2xl">
+        {/* Information Panel */}
+        {/* <Card className="shadow-2xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Comptes de test
+              Authentification Supabase
             </CardTitle>
             <CardDescription>
-              Cliquez sur un profil pour vous connecter rapidement et tester l'interface correspondante
+              Connectez-vous avec vos identifiants Supabase
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {mockProfiles.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleQuickLogin(user)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl">{user.avatar}</div>
-                    <div>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {user.roles.map((role) => (
-                      <Badge 
-                        key={role}
-                        variant="outline"
-                        className={getRoleBadgeColor(role)}
-                      >
-                        {getRoleLabel(role)}
-                      </Badge>
-                    ))}
-                  </div>
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">💡 Guide des rôles</h4>
+                <div className="space-y-1 text-sm text-blue-800">
+                  <div><strong>Client :</strong> Dashboard projet + fichiers + livrables</div>
+                  <div><strong>Closer :</strong> Création comptes, commandes, produits</div>
+                  <div><strong>Collaborateur :</strong> Production et suivi projets</div>
+                  <div><strong>Admin :</strong> Accès complet à toutes les interfaces</div>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">💡 Guide des rôles</h4>
-              <div className="space-y-1 text-sm text-blue-800">
-                <div><strong>Lead :</strong> Processus d'onboarding uniquement</div>
-                <div><strong>Client :</strong> Dashboard projet + fichiers + livrables</div>
-                <div><strong>Closer :</strong> Création comptes, commandes, produits</div>
-                <div><strong>Collaborateur :</strong> Production et suivi projets</div>
-                <div><strong>Admin :</strong> Accès complet à toutes les interfaces</div>
+              </div>
+              
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-900 mb-2">🔐 Sécurité</h4>
+                <div className="space-y-1 text-sm text-green-800">
+                  <div>• Authentification sécurisée via Supabase</div>
+                  <div>• Changement de mot de passe obligatoire pour les nouveaux clients</div>
+                  <div>• Accès basé sur les rôles utilisateur</div>
+                </div>
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );

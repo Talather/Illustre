@@ -6,8 +6,7 @@ const Index = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Redirect to login/dashboard based on auth status
-    navigate('/dashboard');
+    navigate('/');
   }, [navigate]);
 
   return (

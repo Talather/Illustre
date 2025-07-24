@@ -13,6 +13,7 @@ export interface Order {
   id: string;
   clientId: string;
   clientName: string;
+  orderName: string;
   status: 'onboarding' | 'in_progress' | 'completed';
   createdAt: string;
   isSubcontracted: boolean;
@@ -53,6 +54,7 @@ export interface OnboardingStep {
   step: 'call_scheduled' | 'contract_signed' | 'payment_made' | 'form_completed';
   completed: boolean;
   completedAt?: string;
+  link?: string;
 }
 
 export interface ProductTemplate {
@@ -154,7 +156,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-podcast-3',
     name: '3 Vidéos Podcast',
     format: 'podcast',
-    basePrice: 2400,
+    basePrice: 600,
     quantity: 3,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_3_videos',
     description: '3 vidéos podcast professionnelles avec montage complet'
@@ -163,7 +165,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-podcast-6',
     name: '6 Vidéos Podcast',
     format: 'podcast',
-    basePrice: 4500,
+    basePrice: 1200,
     quantity: 6,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_6_videos',
     description: '6 vidéos podcast avec package complet'
@@ -172,7 +174,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-podcast-10',
     name: '10 Vidéos Podcast',
     format: 'podcast',
-    basePrice: 7000,
+    basePrice: 1500,
     quantity: 10,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_10_videos',
     description: '10 vidéos podcast - package premium'
@@ -181,7 +183,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-scripted-3',
     name: '3 Vidéos Scriptées',
     format: 'scripted',
-    basePrice: 3600,
+    basePrice: 600,
     quantity: 3,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_3_videos',
     description: '3 vidéos scriptées avec scénarios sur mesure'
@@ -190,7 +192,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-scripted-6',
     name: '6 Vidéos Scriptées',
     format: 'scripted',
-    basePrice: 6800,
+    basePrice: 1200,
     quantity: 6,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_6_videos',
     description: '6 vidéos scriptées complètes'
@@ -199,7 +201,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-scripted-10',
     name: '10 Vidéos Scriptées',
     format: 'scripted',
-    basePrice: 10500,
+    basePrice: 1500,
     quantity: 10,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_10_videos',
     description: '10 vidéos scriptées - solution complète'
@@ -208,7 +210,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-micro-3',
     name: '3 Micro-trottoirs',
     format: 'micro-interview',
-    basePrice: 1800,
+    basePrice: 600,  
     quantity: 3,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_3_videos',
     description: '3 micro-trottoirs dynamiques'
@@ -217,7 +219,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-micro-6',
     name: '6 Micro-trottoirs',
     format: 'micro-interview',
-    basePrice: 3300,
+    basePrice: 1200,
     quantity: 6,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_6_videos',
     description: '6 micro-trottoirs avec montage créatif'
@@ -226,7 +228,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-micro-10',
     name: '10 Micro-trottoirs',
     format: 'micro-interview',
-    basePrice: 5000,
+    basePrice: 1500,
     quantity: 10,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_10_videos',
     description: '10 micro-trottoirs - package optimal'
@@ -353,10 +355,10 @@ export const mockOrderProducts: OrderProduct[] = [
 // Mock Onboarding Steps (corrected order)
 export const mockOnboardingSteps: OnboardingStep[] = [
   // Order 1 - Complete
-  { id: 'step-001', orderId: 'ord-001', step: 'call_scheduled', completed: true, completedAt: '2024-01-16' },
-  { id: 'step-002', orderId: 'ord-001', step: 'contract_signed', completed: true, completedAt: '2024-01-17' },
-  { id: 'step-003', orderId: 'ord-001', step: 'payment_made', completed: true, completedAt: '2024-01-18' },
-  { id: 'step-004', orderId: 'ord-001', step: 'form_completed', completed: true, completedAt: '2024-01-19' },
+  { id: 'step-001', orderId: '4f6c8ee0-6f01-428b-895f-503483607ce3', step: 'call_scheduled', completed: false, link: 'https://illustre.fillout.com/rendez-vous?email=xxxxx&name=xxxxx&order=xxxxx', completedAt: '2024-01-16' },
+  { id: 'step-002', orderId: '4f6c8ee0-6f01-428b-895f-503483607ce3', step: 'contract_signed', completed: false, completedAt: '2024-01-17' },
+  { id: 'step-003', orderId: '4f6c8ee0-6f01-428b-895f-503483607ce3', step: 'payment_made', completed: false, link: 'https://illustre.com', completedAt: '2024-01-18' },
+  { id: 'step-004', orderId: '4f6c8ee0-6f01-428b-895f-503483607ce3', step: 'form_completed', completed: false, link: 'https://illustre.fillout.com/formulaire-donboarding?email=xxxxx&name=xxxxx&order=xxxxx', completedAt: '2024-01-19' },
   
   // Order 2 - Partial
   { id: 'step-005', orderId: 'ord-002', step: 'call_scheduled', completed: true, completedAt: '2024-01-21' },
