@@ -229,6 +229,9 @@ export const OnboardingSection = ({
   
   const handleAddressSubmit = async (data: AddressFormValues) => {
     if (!selectedOrderForContract) return;
+    const now = new Date();
+    const date_signature = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
+    
     
     const payload = {
       nom_client: selectedOrderForContract.client_name,
@@ -238,7 +241,7 @@ export const OnboardingSection = ({
       price: selectedOrderForContract.total_price,
       price_ttc: selectedOrderForContract.total_price * 1.2,
       format: selectedOrderForContract.products[0].product_type,
-      date_signature: new Date().toISOString().split('T')[0]
+      date_signature: date_signature
     };
     
     try {
