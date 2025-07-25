@@ -156,7 +156,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-podcast-3',
     name: '3 Vidéos Podcast',
     format: 'podcast',
-    basePrice: 600,
+    basePrice: 900,
     quantity: 3,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_3_videos',
     description: '3 vidéos podcast professionnelles avec montage complet'
@@ -165,7 +165,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-podcast-6',
     name: '6 Vidéos Podcast',
     format: 'podcast',
-    basePrice: 1200,
+    basePrice: 1700,
     quantity: 6,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_6_videos',
     description: '6 vidéos podcast avec package complet'
@@ -174,7 +174,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-podcast-10',
     name: '10 Vidéos Podcast',
     format: 'podcast',
-    basePrice: 1500,
+    basePrice: 2300,
     quantity: 10,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_podcast_10_videos',
     description: '10 vidéos podcast - package premium'
@@ -183,7 +183,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-scripted-3',
     name: '3 Vidéos Scriptées',
     format: 'scripted',
-    basePrice: 600,
+    basePrice: 900,
     quantity: 3,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_3_videos',
     description: '3 vidéos scriptées avec scénarios sur mesure'
@@ -192,7 +192,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-scripted-6',
     name: '6 Vidéos Scriptées',
     format: 'scripted',
-    basePrice: 1200,
+    basePrice: 1700,
     quantity: 6,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_6_videos',
     description: '6 vidéos scriptées complètes'
@@ -201,7 +201,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-scripted-10',
     name: '10 Vidéos Scriptées',
     format: 'scripted',
-    basePrice: 1500,
+    basePrice: 2300,
     quantity: 10,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_scripted_10_videos',
     description: '10 vidéos scriptées - solution complète'
@@ -210,7 +210,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-micro-3',
     name: '3 Micro-trottoirs',
     format: 'micro-interview',
-    basePrice: 600,  
+    basePrice: 900,  
     quantity: 3,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_3_videos',
     description: '3 micro-trottoirs dynamiques'
@@ -219,7 +219,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-micro-6',
     name: '6 Micro-trottoirs',
     format: 'micro-interview',
-    basePrice: 1200,
+    basePrice: 1700,
     quantity: 6,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_6_videos',
     description: '6 micro-trottoirs avec montage créatif'
@@ -228,7 +228,7 @@ export const productTemplates: ProductTemplate[] = [
     id: 'template-micro-10',
     name: '10 Micro-trottoirs',
     format: 'micro-interview',
-    basePrice: 1500,
+    basePrice: 2300,
     quantity: 10,
     stripeCheckoutUrl: 'https://checkout.stripe.com/pay/cs_test_micro_10_videos',
     description: '10 micro-trottoirs - package optimal'
