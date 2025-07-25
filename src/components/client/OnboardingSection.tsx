@@ -7,6 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client.js";
 import { redirectToCheckout } from "@/utils/stripe";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 import { 
   CheckCircle,
   Clock,
@@ -60,15 +66,19 @@ const PDF_MONKEY_API_KEY = "7co4zPYMXdbsJ1dMuniP"
 const TEMPLATE_ID = "0E5ACB73-B140-494E-BFF4-765C56D01729" // <-- Replace with your actual template ID
 
 const generatePdfAndSaveLink = async (order: DatabaseOrder) => {
+  const now = new Date();
+const date_signature = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
+
   const payload = {
     nom_client: order.client_name,
     adresse_client: order.client_email,
     nombre_videos: order.products[0].product_name,
     prix: order.total_price,
     price: order.total_price,
-    price_ttc: order.total_price,
+    price_ttc: order.total_price * 1.2 ,
     format: order.products[0].product_type,
-    date_signature: new Date().toISOString().split('T')[0]
+    date_signature: date_signature,
+    
   }
 
   try {
@@ -153,6 +163,8 @@ const generatePdfAndSaveLink = async (order: DatabaseOrder) => {
   }
 }
 
+ 
+
 // Function to update contract status in database
 const updateContractStatus = async (orderId: string) => {
   try {
@@ -192,6 +204,123 @@ export const OnboardingSection = ({
   const [pdfDownloaded, setPdfDownloaded] = useState<Record<string, boolean>>({});
   const [paymentLoading, setPaymentLoading] = useState<Record<string, boolean>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const [selectedOrderForContract, setSelectedOrderForContract] = useState<DatabaseOrder | null>(null);
+  const [addressFormOpen, setAddressFormOpen] = useState(false);
+  const addressFormSchema = z.object({
+    address: z.string().min(1, "L'adresse est requise"),
+    postalCode: z.string().min(1, "Le code postal est requis"),
+  });
+  
+  type AddressFormValues = z.infer<typeof addressFormSchema>;
+  
+  const addressForm = useForm<AddressFormValues>({
+    resolver: zodResolver(addressFormSchema),
+    defaultValues: {
+      address: "",
+      postalCode: "",
+    },
+  });
+  
+  const handleGeneratePdf = async (order: DatabaseOrder) => {
+    setSelectedOrderForContract(order);
+    setAddressFormOpen(true);
+  };
+  
+  const handleAddressSubmit = async (data: AddressFormValues) => {
+    if (!selectedOrderForContract) return;
+    
+    const payload = {
+      nom_client: selectedOrderForContract.client_name,
+      adresse_client: `${data.address}, ${data.postalCode}`,
+      nombre_videos: selectedOrderForContract.products[0].product_name,
+      prix: selectedOrderForContract.total_price,
+      price: selectedOrderForContract.total_price,
+      price_ttc: selectedOrderForContract.total_price * 1.2,
+      format: selectedOrderForContract.products[0].product_type,
+      date_signature: new Date().toISOString().split('T')[0]
+    };
+    
+    try {
+      toast({
+        title: "Génération du PDF en cours",
+        description: "Veuillez patienter...",
+      });
+
+      // Step 1: Create the document
+      const createRes = await fetch("https://api.pdfmonkey.io/api/v1/documents", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${PDF_MONKEY_API_KEY}`
+        },
+        body: JSON.stringify({
+          document: {
+            payload,
+            document_template_id: TEMPLATE_ID,
+            status:"pending"
+          }
+        })
+      });
+
+      const createdDoc = await createRes.json();
+      const documentId = createdDoc.document.id;
+
+      // Step 2: Poll until the PDF is ready
+      let pdfUrl = null;
+      for (let i = 0; i < 10; i++) {
+        const statusRes = await fetch(`https://api.pdfmonkey.io/api/v1/documents/${documentId}`, {
+          headers: {
+            Authorization: `Bearer ${PDF_MONKEY_API_KEY}`
+          }
+        });
+
+        const statusData = await statusRes.json();
+        const status = statusData.document.status;
+
+        if (status === "success") {
+          pdfUrl = statusData.document.download_url;
+          break;
+        }
+
+        await new Promise(res => setTimeout(res, 2000));
+      }
+
+      if (!pdfUrl) {
+        throw new Error("PDF generation timed out");
+      }
+
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = 'contrat-illustre.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Contrat téléchargé",
+        description: "Le PDF a été téléchargé avec succès. Veuillez signer et téléverser le contrat.",
+      });
+
+      // Instead of updating contract status, mark PDF as downloaded
+      // This will show the upload option to the user
+      setPdfDownloaded(prev => ({
+        ...prev,
+        [selectedOrderForContract.id]: true
+      }));
+      
+      setAddressFormOpen(false);
+      addressForm.reset();
+      
+    } catch (err) {
+      console.error("❌ Error creating PDF:", err);
+      toast({
+        title: "Erreur",
+        description: "Impossible de générer le PDF",
+        variant: "destructive"
+      });
+    }
+  };
 
   /**
    * Define the correct onboarding step order and configuration
@@ -318,6 +447,47 @@ export const OnboardingSection = ({
 
   return (
     <div className="mb-8 space-y-6">
+      {/* Address Form Dialog */}
+      <Dialog open={addressFormOpen} onOpenChange={(open) => {
+        setAddressFormOpen(open);
+        if (!open) addressForm.reset();
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adresse pour le contrat</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={addressForm.handleSubmit(handleAddressSubmit)} className="space-y-4 pt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="address">Adresse</Label>
+                <Input
+                  id="address"
+                  placeholder="123 rue de Paris"
+                  {...addressForm.register("address")}
+                />
+                {addressForm.formState.errors.address && (
+                  <p className="text-sm text-red-500">{addressForm.formState.errors.address.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="postalCode">Code Postal</Label>
+                <Input
+                  id="postalCode"
+                  placeholder="75001"
+                  {...addressForm.register("postalCode")}
+                />
+                {addressForm.formState.errors.postalCode && (
+                  <p className="text-sm text-red-500">{addressForm.formState.errors.postalCode.message}</p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Générer le contrat</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Display onboarding blocks for each order in onboarding status */}
       {onboardingOrders.map((order) => {
         const steps = getStepsForOrder(order.id);
@@ -405,12 +575,7 @@ export const OnboardingSection = ({
                           <div className="mt-3">
                             {!step.completed && !pdfDownloaded[order.id] && (
                               <Button
-                                onClick={async () => {
-                                  const pdfUrl = await generatePdfAndSaveLink(order);
-                                  if (pdfUrl) {
-                                    setPdfDownloaded(prev => ({ ...prev, [order.id]: true }));
-                                  }
-                                }}
+                                onClick={() => handleGeneratePdf(order)}
                                 variant="outline"
                                 size="sm"
                                 className="flex items-center gap-2"
@@ -423,7 +588,7 @@ export const OnboardingSection = ({
                             {!step.completed && pdfDownloaded[order.id] && (
                               <div className="space-y-2">
                                 <p className="text-xs text-gray-500">
-                                  Veuillez téléverser le contrat signé (format PDF uniquement)
+                                 Téléversez le contrat signé (PDF)
                                 </p>
                                 <div className="flex items-center gap-2">
                                   <input

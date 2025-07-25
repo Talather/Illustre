@@ -86,6 +86,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
     selectedProducts: [] as SelectedProduct[],
     customOptions: [] as CustomOption[]
   });
+  const [tab, setTab] = useState('create');
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -359,6 +360,155 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       ...prev,
       customOptions: prev.customOptions.filter((_, i) => i !== index)
     }));
+  };
+
+  // Effect to load order data when editing an existing order
+  useEffect(() => {
+    if (editingOrderId) {
+      const orderToEdit = existingOrders.find(order => order.id === editingOrderId);
+      if (orderToEdit) {
+        // Convert order products to selectedProducts format
+        const selectedProducts = orderToEdit.products.map(product => {
+          // Find matching template
+          const template = productTemplates.find(t => 
+            t.name === product.product_name && t.format === product.product_type
+          );
+          
+          if (!template) {
+            console.error('Template not found for product:', product);
+            return null;
+          }
+          
+          return {
+            template,
+            quantity: product.quantity || 1
+          };
+        }).filter(p => p !== null) as SelectedProduct[];
+        
+        // Convert custom options to match form format
+        const customOptions = orderToEdit.custom_options.map(option => ({
+          name: option.option_name || '',
+          description: option.option_description || '',
+          price: option.price?.toString() || '0'
+        }));
+        
+        // Populate the form with existing data
+        setNewOrderData({
+          clientId: orderToEdit.client_id || '',
+          name: orderToEdit.order_name || '',
+          selectedProducts,
+          customOptions
+        });
+        
+        // Scroll to the form for better UX
+        document.querySelector('.card')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [editingOrderId, existingOrders, productTemplates]);
+
+  const handleUpdateOrder = async () => {
+    if (!editingOrderId) return;
+    
+    if (!newOrderData.clientId || !newOrderData.name || newOrderData.selectedProducts.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Sélectionnez un client, nom de commande et au moins un produit",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    for (let i = 0; i < newOrderData.customOptions.length; i++) {
+      const option = newOrderData.customOptions[i];
+      if (!option.name.trim() || !option.description.trim() || !option.price.trim()) {
+        toast({
+          title: "Erreur",
+          description: "Option personnalisée " + (i + 1) + ": Tous les champs doivent être remplis (nom, description, prix)",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate price is a valid number
+      if (isNaN(parseFloat(option.price)) || parseFloat(option.price) < 0) {
+        toast({
+          title: "Erreur",
+          description: "Option personnalisée " + (i + 1) + ": Le prix doit être un nombre valide",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
+    setIsCreatingOrder(true);
+    
+    try {
+      const totalPrice = getTotalPrice();
+      
+      // Prepare products JSON data
+      const productsData = newOrderData.selectedProducts.map(p => ({
+        product_type: p.template.format,
+        product_name: p.template.name,
+        quantity: p.quantity,
+        unit_price: p.template.basePrice,
+        total_price: p.template.basePrice * p.quantity
+      }));
+      
+      // Prepare custom options JSON data
+      const customOptionsData = newOrderData.customOptions.map(option => ({
+        option_name: option.name,
+        option_description: option.description,
+        price: parseFloat(option.price)
+      }));
+      
+      // Update the order with products and custom options as JSON
+      const { data: orderData, error: orderError } = await (supabase as any)
+        .from('orders')
+        .update({
+          client_id: newOrderData.clientId,
+          order_name: newOrderData.name,
+          products: productsData,
+          custom_options: customOptionsData,
+          total_price: totalPrice,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingOrderId)
+        .select()
+        .single();
+      
+      if (orderError) {
+        throw new Error(orderError.message);
+      }
+      
+      console.log('Order updated:', orderData);
+      
+      toast({
+        title: "Commande mise à jour",
+        description: "Commande \"" + newOrderData.name + "\" modifiée avec " + newOrderData.selectedProducts.length + " produit(s) et " + newOrderData.customOptions.length + " option(s)",
+      });
+
+      // Reset form and editing state
+      setNewOrderData({ 
+        clientId: "", 
+        name: "",
+        selectedProducts: [], 
+        customOptions: [] 
+      });
+      setEditingOrderId(null);
+      
+      // Refresh orders list
+      fetchOrders();
+      
+    } catch (error: any) {
+      console.error('Error updating order:', error);
+      toast({
+        title: "Erreur lors de la mise à jour",
+        description: error.message || "Impossible de mettre à jour la commande",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreatingOrder(false);
+    }
   };
 
   const handleCreateOrder = async () => {
@@ -652,7 +802,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
           </p>
         </div>
 
-        <Tabs defaultValue="create" className="space-y-6">
+        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="create">Créer</TabsTrigger>
             <TabsTrigger value="orders">Commandes</TabsTrigger>
@@ -722,10 +872,12 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5" />
-                    Créer une commande
+                    {editingOrderId ? 'Modifier la commande' : 'Créer une commande'}
                   </CardTitle>
                   <CardDescription>
-                    Créez une nouvelle commande avec templates prédéfinis
+                    {editingOrderId 
+                      ? 'Modifiez les détails de la commande existante' 
+                      : 'Créez une nouvelle commande avec templates prédéfinis'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -913,13 +1065,34 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                     </div>
                   )}
 
-                  <Button 
-                    onClick={handleCreateOrder}
-                    disabled={isCreatingOrder || !newOrderData.clientId || newOrderData.selectedProducts.length === 0}
-                    className="w-full bg-gradient-turquoise hover:opacity-90"
-                  >
-                    {isCreatingOrder ? "Création..." : "Créer la commande"}
-                  </Button>
+                  <div className="flex gap-3">
+                    {editingOrderId && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => {
+                          setEditingOrderId(null);
+                          setNewOrderData({ 
+                            clientId: "", 
+                            name: "",
+                            selectedProducts: [], 
+                            customOptions: [] 
+                          });
+                        }}
+                        className="flex-1"
+                      >
+                        Annuler
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={editingOrderId ? handleUpdateOrder : handleCreateOrder}
+                      disabled={isCreatingOrder || !newOrderData.clientId || newOrderData.selectedProducts.length === 0}
+                      className={`${editingOrderId ? 'flex-1' : 'w-full'} bg-gradient-turquoise hover:opacity-90`}
+                    >
+                      {isCreatingOrder 
+                        ? editingOrderId ? "Mise à jour..." : "Création..." 
+                        : editingOrderId ? "Mettre à jour" : "Créer la commande"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -966,7 +1139,14 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                             <>
                               <Button
                                 variant="outline"
-                                onClick={() => setEditingOrderId(order.id)}
+                                onClick={() => {
+                                  setEditingOrderId(order.id);
+                                  setTab('create');
+                                  toast({
+                                    title: "Commande sélectionnée",
+                                    description: "La commande que vous avez choisie est maintenant affichée à l'avant. Vous pouvez la modifier.",
+                                  });
+                                }}
                               >
                                 <Edit className="w-4 h-4 mr-2" />
                                 Modifier
