@@ -70,47 +70,47 @@ export const ProfileSection = ({ user }: ProfileSectionProps) => {
       // Check if email has changed
       const emailChanged = profile && profile.email !== formData.email;
       
-      if (emailChanged) {
-        // Call the Edge Function to update the email
-        try {
-          const response = await fetch('https://kklvthnshgqhmdhuuhzr.supabase.co/functions/v1/update-email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            },
-            body: JSON.stringify({
-              current_email: profile.email,
-              new_email: formData.email
-            })
-          });
+      // if (emailChanged) {
+      //   // Call the Edge Function to update the email
+      //   try {
+      //     const response = await fetch('https://kklvthnshgqhmdhuuhzr.supabase.co/functions/v1/update-email', {
+      //       method: 'POST',
+      //       headers: {
+      //         'Content-Type': 'application/json',
+      //         'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      //       },
+      //       body: JSON.stringify({
+      //         current_email: profile.email,
+      //         new_email: formData.email
+      //       })
+      //     });
           
-          const result = await response.json();
+      //     const result = await response.json();
           
-          if (!response.ok) {
-            throw new Error(result.error || 'Error updating email');
-          }
+      //     if (!response.ok) {
+      //       throw new Error(result.error || 'Error updating email');
+      //     }
           
-          toast({
-            title: "E-mail mis à jour",
-            description: "Votre adresse e-mail a été mise à jour avec succès."
-          });
-        } catch (error: any) {
-          console.error("Error calling update-email function:", error);
-          toast({
-            title: "Erreur",
-            description: error.message || "Impossible de mettre à jour l'adresse e-mail. Veuillez réessayer.",
-            variant: "destructive"
-          });
-          setIsLoading(false);
-          return;
-        }
-      }
+      //     toast({
+      //       title: "E-mail mis à jour",
+      //       description: "Votre adresse e-mail a été mise à jour avec succès."
+      //     });
+      //   } catch (error: any) {
+      //     console.error("Error calling update-email function:", error);
+      //     toast({
+      //       title: "Erreur",
+      //       description: error.message || "Impossible de mettre à jour l'adresse e-mail. Veuillez réessayer.",
+      //       variant: "destructive"
+      //     });
+      //     setIsLoading(false);
+      //     return;
+      //   }
+      // }
       
       // Then update the profile in the auth context (which updates Supabase profile document)
       const result = await updateProfile({
         full_name: formData.full_name,
-        email: formData.email,
+        email: profile.email,
       });
 
       if (result.success) {
