@@ -66,6 +66,14 @@ interface CustomOption {
   price: string;
 }
 
+interface CustomProduct {
+  name: string;
+  description: string;
+  price: string;
+  quantity: string;
+  format: string;
+}
+
 interface SelectedProduct {
   template: ProductTemplate;
   quantity: number;
@@ -84,6 +92,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
     clientId: "",
     name: "",
     selectedProducts: [] as SelectedProduct[],
+    customProducts: [] as CustomProduct[],
     customOptions: [] as CustomOption[]
   });
   const [tab, setTab] = useState('create');
@@ -362,28 +371,72 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
     }));
   };
 
+  // Custom Products Handlers
+  const handleAddCustomProduct = () => {
+    setNewOrderData(prev => ({
+      ...prev,
+      customProducts: [...prev.customProducts, {
+        name: "",
+        description: "",
+        price: "",
+        quantity: "1",
+        format: "micro-trottoir"
+      }]
+    }));
+  };
+
+  const handleUpdateCustomProduct = (index: number, field: string, value: string) => {
+    setNewOrderData(prev => ({
+      ...prev,
+      customProducts: prev.customProducts.map((product, i) => 
+        i === index ? { ...product, [field]: value } : product
+      )
+    }));
+  };
+
+  const handleRemoveCustomProduct = (index: number) => {
+    setNewOrderData(prev => ({
+      ...prev,
+      customProducts: prev.customProducts.filter((_, i) => i !== index)
+    }));
+  };
+
   // Effect to load order data when editing an existing order
   useEffect(() => {
     if (editingOrderId) {
       const orderToEdit = existingOrders.find(order => order.id === editingOrderId);
       if (orderToEdit) {
-        // Convert order products to selectedProducts format
-        const selectedProducts = orderToEdit.products.map(product => {
-          // Find matching template
-          const template = productTemplates.find(t => 
-            t.name === product.product_name && t.format === product.product_type
-          );
-          
-          if (!template) {
-            console.error('Template not found for product:', product);
-            return null;
-          }
-          
-          return {
-            template,
-            quantity: product.quantity || 1
-          };
-        }).filter(p => p !== null) as SelectedProduct[];
+        // Map products to selectedProducts and customProducts format
+        const productData = orderToEdit.products.reduce(
+          (acc, product) => {
+            if (product.isCustom === true) {
+              // This is a custom product
+              acc.customProducts.push({
+                name: product.product_name || '',
+                description: product.description || '',
+                price: product.unit_price?.toString() || '0',
+                quantity: product.quantity?.toString() || '1',
+                format: product.product_type || 'micro-trottoir'
+              });
+            } else {
+              // This is a regular product with template
+              const template = productTemplates.find(t => 
+                t.name === product.product_name && t.format === product.product_type
+              );
+              
+              if (template) {
+                acc.selectedProducts.push({
+                  template,
+                  quantity: product.quantity
+                });
+              } else {
+                console.error(`Template not found for product: ${product.product_name}`);
+              }
+            }
+            return acc;
+          },
+          { selectedProducts: [] as SelectedProduct[], customProducts: [] as CustomProduct[] }
+        );
         
         // Convert custom options to match form format
         const customOptions = orderToEdit.custom_options.map(option => ({
@@ -396,7 +449,8 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         setNewOrderData({
           clientId: orderToEdit.client_id || '',
           name: orderToEdit.order_name || '',
-          selectedProducts,
+          selectedProducts: productData.selectedProducts,
+          customProducts: productData.customProducts,
           customOptions
         });
         
@@ -440,6 +494,29 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       }
     }
 
+    // Validate custom products
+    for (let i = 0; i < newOrderData.customProducts.length; i++) {
+      const product = newOrderData.customProducts[i];
+      if (!product.name.trim() || !product.description.trim() || !product.price.trim() || !product.quantity.trim() || !product.format.trim()) {
+        toast({
+          title: "Erreur",
+          description: "Produit personnalisé " + (i + 1) + ": Tous les champs doivent être remplis (nom, description, prix, quantité, format)",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate price is a valid number
+      if (isNaN(parseFloat(product.price)) || parseFloat(product.price) < 0) {
+        toast({
+          title: "Erreur",
+          description: "Produit personnalisé " + (i + 1) + ": Le prix doit être un nombre valide",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setIsCreatingOrder(true);
     
     try {
@@ -451,7 +528,8 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         product_name: p.template.name,
         quantity: p.quantity,
         unit_price: p.template.basePrice,
-        total_price: p.template.basePrice * p.quantity
+        total_price: p.template.basePrice * p.quantity,
+        isCustom: false,
       }));
       
       // Prepare custom options JSON data
@@ -461,13 +539,26 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         price: parseFloat(option.price)
       }));
       
+      // Prepare custom products JSON data
+      let customProducts = newOrderData.customProducts.map(product => ({
+        product_type: product.format,
+        product_name: product.name,
+        quantity: parseInt(product.quantity),
+        unit_price: parseFloat(product.price),
+        total_price: parseFloat(product.price) * parseInt(product.quantity),
+        description: product.description,
+        isCustom: true,
+      }));
+
+      let products = [...productsData, ...customProducts];
+      
       // Update the order with products and custom options as JSON
       const { data: orderData, error: orderError } = await (supabase as any)
         .from('orders')
         .update({
           client_id: newOrderData.clientId,
           order_name: newOrderData.name,
-          products: productsData,
+          products: products,
           custom_options: customOptionsData,
           total_price: totalPrice,
           updated_at: new Date().toISOString()
@@ -484,7 +575,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       
       toast({
         title: "Commande mise à jour",
-        description: "Commande \"" + newOrderData.name + "\" modifiée avec " + newOrderData.selectedProducts.length + " produit(s) et " + newOrderData.customOptions.length + " option(s)",
+        description: "Commande \"" + newOrderData.name + "\" modifiée avec " + newOrderData.selectedProducts.length + " produit(s) standard, " + newOrderData.customProducts.length + " produit(s) personnalisé(s) et " + newOrderData.customOptions.length + " option(s)",
       });
 
       // Reset form and editing state
@@ -492,6 +583,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         clientId: "", 
         name: "",
         selectedProducts: [], 
+        customProducts: [],
         customOptions: [] 
       });
       setEditingOrderId(null);
@@ -543,6 +635,28 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
       }
     }
 
+    for (let i = 0; i < newOrderData.customProducts.length; i++) {
+      const product = newOrderData.customProducts[i];
+      if (!product.name.trim() || !product.description.trim() || !product.price.trim() || !product.quantity.trim() || !product.format.trim()) {
+        toast({
+          title: "Erreur",
+          description: "Produit personnalisé " + (i + 1) + ": Tous les champs doivent être remplis (nom, description, prix, quantité, format)",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate price is a valid number
+      if (isNaN(parseFloat(product.price)) || parseFloat(product.price) < 0) {
+        toast({
+          title: "Erreur",
+          description: "Produit personnalisé " + (i + 1) + ": Le prix doit être un nombre valide",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setIsCreatingOrder(true);
     
     try {
@@ -554,7 +668,8 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         product_name: p.template.name,
         quantity: p.quantity,
         unit_price: p.template.basePrice,
-        total_price: p.template.basePrice * p.quantity
+        total_price: p.template.basePrice * p.quantity,
+        isCustom:false,
       }));
       
       // Prepare custom options JSON data
@@ -563,6 +678,16 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         option_description: option.description,
         price: parseFloat(option.price)
       }));
+      let customProducts = newOrderData.customProducts.map(product => ({
+        product_type: product.format,
+        product_name: product.name,
+        quantity: product.quantity,
+        unit_price: parseFloat(product.price),
+        total_price: parseFloat(product.price) * parseFloat(product.quantity),
+        isCustom:true,
+      }));
+
+      let products = [...productsData, ...customProducts];
       
       // Create the order with products and custom options as JSON
       const { data: orderData, error: orderError } = await (supabase as any)
@@ -572,7 +697,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
           closer_id: user.id, // Current user (closer) creates the order
           order_name: newOrderData.name,
           status: 'pending',
-          products: productsData,
+          products: products,
           custom_options: customOptionsData,
           total_price: totalPrice
         })
@@ -636,7 +761,7 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         console.log('Onboarding steps created successfully');
         toast({
           title: "Commande créée avec succès",
-          description: "Commande \"" + newOrderData.name + "\" créée avec " + newOrderData.selectedProducts.length + " produit(s) et " + newOrderData.customOptions.length + " option(s)",
+          description: "Commande \"" + newOrderData.name + "\" créée avec " + newOrderData.selectedProducts.length + " produit(s) standard, " + newOrderData.customProducts.length + " produit(s) personnalisé(s) et " + newOrderData.customOptions.length + " option(s)",
         });
       }
 
@@ -645,7 +770,8 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
         clientId: "", 
         name: "",
         selectedProducts: [], 
-        customOptions: [] 
+        customOptions: [],
+        customProducts: [] 
       });
       
       // Refresh orders list
@@ -747,15 +873,22 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
   };
 
   const getTotalPrice = () => {
-    const productsTotal = newOrderData.selectedProducts.reduce((total, product) => {
-      return total + (product.template.basePrice * product.quantity);
+    // Sum of product prices (base price * quantity)
+    const productsTotal = newOrderData.selectedProducts.reduce((sum, product) => {
+      return sum + (product.template.basePrice * product.quantity);
     }, 0);
     
-    const customOptionsTotal = newOrderData.customOptions.reduce((total, option) => {
-      return total + (parseFloat(option.price) || 0);
+    // Sum of custom products prices
+    const customProductsTotal = newOrderData.customProducts.reduce((sum, product) => {
+      return sum + (parseFloat(product.price) * parseFloat(product.quantity) || 0);
     }, 0);
     
-    return productsTotal + customOptionsTotal;
+    // Sum of custom options prices
+    const optionsTotal = newOrderData.customOptions.reduce((sum, option) => {
+      return sum + (parseFloat(option.price) || 0);
+    }, 0);
+    
+    return productsTotal + customProductsTotal + optionsTotal;
   };
 
   const groupedTemplates = {
@@ -1007,6 +1140,88 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                     </div>
                   </div>
 
+                  {/* Custom Products */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium">Produits personnalisés</label>
+                      <Button variant="outline" size="sm" onClick={handleAddCustomProduct}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        Ajouter produit
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {newOrderData.customProducts.map((product, index) => (
+                        <div key={index} className="p-3 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Produit {index + 1}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleRemoveCustomProduct(index)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Supprimer
+                            </Button>
+                          </div>
+                          <Input
+                            placeholder="Nom du produit"
+                            value={product.name}
+                            onChange={(e) => handleUpdateCustomProduct(index, 'name', e.target.value)}
+                          />
+                          <Textarea
+                            placeholder="Description"
+                            value={product.description}
+                            onChange={(e) => handleUpdateCustomProduct(index, 'description', e.target.value)}
+                            rows={2}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">Prix unitaire (€)</label>
+                              <Input
+                                placeholder="Prix"
+                                type="number"
+                                value={product.price}
+                                onChange={(e) => handleUpdateCustomProduct(index, 'price', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 mb-1 block">Quantité</label>
+                              <Input
+                                placeholder="Quantité"
+                                type="number"
+                                value={product.quantity}
+                                onChange={(e) => handleUpdateCustomProduct(index, 'quantity', e.target.value)}
+                                min="1"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 mb-1 block">Format</label>
+                            <Select 
+                              value={product.format} 
+                              onValueChange={(value) => handleUpdateCustomProduct(index, 'format', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner un format" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="micro-trottoir">Micro-trottoir</SelectItem>
+                                <SelectItem value="scripted">Scripté</SelectItem>
+                                <SelectItem value="interview">Interview</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-medium">
+                              Total: {(parseFloat(product.price) * parseFloat(product.quantity) || 0).toFixed(2)}€
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Custom Options */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -1053,14 +1268,16 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                     </div>
                   </div>
 
-                  {(newOrderData.selectedProducts.length > 0 || newOrderData.customOptions.length > 0) && (
+                  {(newOrderData.selectedProducts.length > 0 || newOrderData.customProducts.length > 0 || newOrderData.customOptions.length > 0) && (
                     <div className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between font-medium">
                         <span>Prix total:</span>
                         <span className="text-lg">{getTotalPrice()}€</span>
                       </div>
                       <div className="text-sm text-gray-600 mt-1">
-                        {newOrderData.selectedProducts.length} produit(s) + {newOrderData.customOptions.length} option(s) personnalisée(s)
+                        {newOrderData.selectedProducts.length} produit(s) standard + 
+                        {newOrderData.customProducts.length} produit(s) personnalisé(s) + 
+                        {newOrderData.customOptions.length} option(s) personnalisée(s)
                       </div>
                     </div>
                   )}
@@ -1075,7 +1292,8 @@ const CloserInterface = ({ user, onLogout }: CloserInterfaceProps) => {
                             clientId: "", 
                             name: "",
                             selectedProducts: [], 
-                            customOptions: [] 
+                            customOptions: [],
+                            customProducts: [] 
                           });
                         }}
                         className="flex-1"

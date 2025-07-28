@@ -62,8 +62,8 @@ interface OnboardingSectionProps {
   onStartOnboarding: (orderTitle?: string) => void;
 }
 
-const PDF_MONKEY_API_KEY = "7co4zPYMXdbsJ1dMuniP"
-const TEMPLATE_ID = "0E5ACB73-B140-494E-BFF4-765C56D01729" // <-- Replace with your actual template ID
+const PDF_MONKEY_API_KEY = "AM8AN7ycSUC4jsWahLmgpBUbwBQDJeNZ"
+const TEMPLATE_ID = "FCD4AF8A-FBC5-4CB2-BD26-D8BF11BA4FB8" 
 
 const generatePdfAndSaveLink = async (order: DatabaseOrder) => {
   const now = new Date();
@@ -104,7 +104,6 @@ const date_signature = `${now.getDate().toString().padStart(2, '0')}-${(now.getM
     })
 
     const createdDoc = await createRes.json();
-    console.log(createdDoc);
     const documentId = createdDoc.document.id
 
     console.log("📄 PDFMonkey document ID:", documentId)
@@ -119,7 +118,6 @@ const date_signature = `${now.getDate().toString().padStart(2, '0')}-${(now.getM
       })
 
       const statusData = await statusRes.json();
-      console.log(statusData);
       const status = statusData.document.status
 
       if (status === "success") {
@@ -332,26 +330,26 @@ export const OnboardingSection = ({
  
   const getStepsForOrder = (orderId: string): OnboardingStep[] => {
     const orderSteps = onboardingStepsByOrder[orderId] || [];
-    
     return [
+      {
+        id: 'contract_signed',
+        title: 'Signature du contrat',
+        // link:orderSteps.find(s => s.step === 'contract_signed')?.link,
+        completed: orderSteps.find(s => s.step === 'contract_signed')?.completed || false,
+        icon: Phone
+      },
+      {
+        id: 'payment_made', 
+        title: 'Paiement',
+        // link:orderSteps.find(s => s.step === 'payment_made')?.link,
+        completed: orderSteps.find(s => s.step === 'payment_made')?.completed || false,
+        icon: FileText
+      },
       {
         id: 'call_scheduled',
         title: 'Appel d\'Onboarding',
         link:orderSteps.find(s => s.step === 'call_scheduled')?.link,
         completed: orderSteps.find(s => s.step === 'call_scheduled')?.completed || false,
-        icon: Phone
-      },
-      {
-        id: 'contract_signed', 
-        title: 'Signature du contrat',
-        link:orderSteps.find(s => s.step === 'contract_signed')?.link,
-        completed: orderSteps.find(s => s.step === 'contract_signed')?.completed || false,
-        icon: FileText
-      },
-      {
-        id: 'payment_made',
-        title: 'Paiement',
-        completed: orderSteps.find(s => s.step === 'payment_made')?.completed || false,
         icon: CreditCard
       },
       {
@@ -408,7 +406,6 @@ export const OnboardingSection = ({
   };
   
   const onboardingOrders = useMemo(()=>{
-    console.log(allOrders , onboardingStepsByOrder)
     return allOrders.filter(order => order.status === 'onboarding');
   },[allOrders, onboardingStepsByOrder]);
 
@@ -441,12 +438,6 @@ export const OnboardingSection = ({
       </Card>
     );
   }
-
-  // Filter orders that need onboarding display (only 'onboarding' status)
-
-
-
-//  const onboardingOrders = allOrders.filter(order => order.status === 'onboarding');
 
   return (
     <div className="mb-8 space-y-6">
@@ -525,6 +516,7 @@ export const OnboardingSection = ({
                 {/* Onboarding Steps */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {steps.map((step ,i) => {
+                    console.log(step);
                     const Icon = step.icon;
                     const prevStep = steps[i-1];
                     let isPrevCompleted = false;
@@ -545,7 +537,7 @@ export const OnboardingSection = ({
                         <div className={`p-2 rounded-lg ${
                           step.completed ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-600'
                         }`}>
-                          {step.completed ? (
+                          {step.completed  ? (
                             <CheckCircle className="w-5 h-5" />
                           ) : (
                             <Icon className="w-5 h-5" />
@@ -559,7 +551,7 @@ export const OnboardingSection = ({
                             {step.completed ? 'Complété' : 'En attente'}
                           </div>
                           {/* Show link if step has link and is not completed */}
-                          {!step.completed && step.link && isPrevCompleted   && (
+                          {!step.completed && step.link && isPrevCompleted  && (
                             <a 
                               href={step.link} 
                               target="_blank" 
@@ -709,73 +701,7 @@ export const OnboardingSection = ({
         );
       })}
 
-      {/* New Order Creation */}
-      {/* <div className="flex flex-col sm:flex-row gap-4 items-start">
-        {!showNewOrderForm ? (
-          <Button 
-            onClick={() => setShowNewOrderForm(true)}
-            variant="outline"
-            className="border-blue-200 text-blue-600 hover:bg-blue-50"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvelle commande
-          </Button>
-        ) : (
-          <Card className="flex-1">
-            <CardContent className="p-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nom de la nouvelle commande..."
-                  value={newOrderTitle}
-                  onChange={(e) => setNewOrderTitle(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleCreateNewOrder()}
-                />
-                <Button onClick={handleCreateNewOrder} disabled={!newOrderTitle.trim()}>
-                  Créer
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowNewOrderForm(false);
-                    setNewOrderTitle("");
-                  }}
-                >
-                  Annuler
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div> */}
 
-      {/* List of other orders (non-onboarding) */}
-      {allOrders.filter(order => order.status !== 'onboarding').length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Autres commandes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {allOrders
-                .filter(order => order.status !== 'onboarding')
-                .map((order) => (
-                  <div 
-                    key={order.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div>
-                      <span className="font-medium">{order.client_name}</span>
-                      <span className="text-sm text-gray-600 ml-2">#{order.order_name}</span>
-                    </div>
-                    <Badge className={getOrderStatusColor(order.status)}>
-                      {getOrderStatusLabel(order.status)}
-                    </Badge>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

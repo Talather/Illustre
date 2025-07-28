@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { AuthProvider, useAuthContext } from "@/contexts/AuthContext";
+import { AuthProvider, useAuthContext, ProtectedRoute } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import ClientInterface from "./pages/ClientInterface";
 import CloserInterface from "./pages/CloserInterface";
@@ -42,40 +42,7 @@ const AppRoutes = () => {
       navigate(getDefaultRoute());
     }
   },[user ,profile]);
-  useEffect(()=>{
-  
-   fetchPdf();
-    
-  },[])
 
-  const fetchPdf = async ()=>{
-    try {
-    const response = await fetch(
-      "https://script.google.com/macros/s/AKfycbwjmj85kFb8TAbWBnTysXveePukfZr6QGlApu5ETNLPiHJRyVKAwkMFCKYyi6xohYKT1A/exec",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          name_client: "Jean Dupont",
-          address_client: "123 Rue Exemple, Paris",
-          format: "Podcast",
-          number_videos: 3,
-          price: 1000,
-          price_ttc: 1200
-        })
-      }
-    );
-    console.log(response);
-    
-    const result = await response.json();
-    console.log("📄 PDF URL:", result.pdfUrl);
-  } catch (error) {
-    console.log(error);
-      
-  }
-  }
 
   if (loading) {
     return (
@@ -112,21 +79,19 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* <Route path="/login" element={<LoginPage />} /> */}
-      <Route 
-        path="/client" 
-        element={<ClientInterface user={profile} onLogout={handleLogout} />} 
-      />
+      <Route path="/client" element={<ProtectedRoute requiredRoles={['client']}><ClientInterface user={profile} onLogout={handleLogout} /></ProtectedRoute>} />
+      <Route path="/client/profile" element={<ProtectedRoute requiredRoles={['client']}><ClientInterface user={profile} onLogout={handleLogout}/></ProtectedRoute>} />
       <Route 
         path="/closer" 
-        element={<CloserInterface user={profile} onLogout={handleLogout} />} 
+        element={<ProtectedRoute requiredRoles={['closer']}><CloserInterface user={profile} onLogout={handleLogout} /></ProtectedRoute>} 
       />
       <Route 
         path="/collaborator" 
-        element={<CollaboratorInterface user={profile} onLogout={handleLogout} />} 
+        element={<ProtectedRoute requiredRoles={['collaborator']}><CollaboratorInterface user={profile} onLogout={handleLogout} /></ProtectedRoute>} 
       />
       <Route 
         path="/admin" 
-        element={<AdminInterface user={profile} onLogout={handleLogout} />} 
+        element={<ProtectedRoute requiredRoles={['admin']}><AdminInterface user={profile} onLogout={handleLogout} /></ProtectedRoute>} 
       />
       <Route 
         path="/" 

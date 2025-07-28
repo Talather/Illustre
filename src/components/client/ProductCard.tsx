@@ -26,6 +26,9 @@ interface Product {
   instructions: string;
   product_type: string;
   product_name: string;
+  quantity?: number;
+  unit_price?: number;
+  total_price?: number;
   revisions?: Array<{
     id: string;
     requestedAt: string;
@@ -117,6 +120,33 @@ export const ProductCard = ({
           <div className="p-3 bg-gray-50 rounded-lg">
             <h4 className="font-medium mb-2 text-sm">Instructions du projet</h4>
             <p className="text-sm text-gray-600">{product.product_name}</p>
+            
+            {/* Price information */}
+            {product.total_price && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                {product.quantity && product.quantity > 1 ? (
+                  <div className="flex flex-col gap-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Quantité:</span>
+                      <span className="font-medium">{product.quantity}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Prix unitaire:</span>
+                      <span className="font-medium">{product.unit_price?.toLocaleString('fr-FR')} €</span>
+                    </div>
+                    <div className="flex justify-between text-blue-700 font-semibold">
+                      <span>Total:</span>
+                      <span>{product.total_price.toLocaleString('fr-FR')} €</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Prix:</span>
+                    <span className="text-blue-700 font-semibold">{product.total_price.toLocaleString('fr-FR')} €</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
