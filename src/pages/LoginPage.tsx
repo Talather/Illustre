@@ -6,6 +6,8 @@ import { toast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import logo from "@/assets/logo.png";
+
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -68,8 +70,9 @@ const LoginPage = () => {
         {/* Login Form */}
         <Card className="w-full max-w-md mx-auto shadow-2xl">
           <CardHeader className="text-center">
-            <div className="text-4xl font-avigea text-gradient-turquoise mb-4">
-              illustre!
+            
+            <div className="w-full flex justify-center items-center  text-gradient-turquoise mb-4">
+              <img src={logo} className="w-48"/>
             </div>
             <CardTitle className="text-2xl font-poppins">Connexion</CardTitle>
             <CardDescription>
